@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: cutable-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cutable
+      POSTGRES_USER: cutable
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cutable_local_dev}
+    ports:
+      - "5432:5432"
+    volumes:
+      - cutable-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cutable -d cutable"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  cutable-postgres-data:

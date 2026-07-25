@@ -1,0 +1,20 @@
+{
+  "name": "@cutable/e2b-template",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Build tooling for the Cutable E2B React sandbox template",
+  "scripts": {
+    "build-template-dev": "tsx e2b/build.dev.ts",
+    "build-template": "tsx e2b/build.prod.ts"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "e2b": "^2.36.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "cutable",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix apps/frontend run build && cd apps/backend && go build ./cmd/server",
+    "dev:frontend": "npm --prefix apps/frontend run dev",
+    "dev:backend": "cd apps/backend && go run ./cmd/server",
+    "lint": "npm --prefix apps/frontend run lint",
+    "test": "cd apps/backend && go test ./..."
+  },
+  "packageManager": "npm@11.17.0",
+  "engines": {
+    "node": ">=22"
+  }
+}
