@@ -5,6 +5,11 @@ import { QueryProvider } from "./providers/QueryProvider";
 export const metadata: Metadata = {
   title: "Cutable — Build production-ready React apps with AI",
   description: "Describe an application, attach references, and build it in an isolated development environment.",
+  icons: {
+    icon: "/icon.png",
+    shortcut: "/favicon.ico",
+    apple: "/apple-icon.png",
+  },
 };
 
 export default function RootLayout({

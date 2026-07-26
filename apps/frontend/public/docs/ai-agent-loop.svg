@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+    <title id="title">AI execution loop</title>
+    <desc id="desc">03 / model proposes, Go controls, sandbox executes</desc>
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#43524d"/></marker>
+      <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="4" stdDeviation="7" flood-opacity=".08"/></filter>
+    </defs>
+    <style>
+      text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; fill: #17211e; }
+      .title { font-size: 39px; font-weight: 700; letter-spacing: -1.2px; }
+      .kicker { font-size: 16px; font-weight: 650; letter-spacing: 1.6px; fill: #2f5e50; }
+      .label { font-size: 17px; font-weight: 750; letter-spacing: .5px; }
+      .detail { font-size: 16px; fill: #66706c; }
+      .edge { font-size: 13px; font-weight: 650; fill: #43524d; }
+      .note { font-size: 16px; font-weight: 600; }
+    </style>
+    <rect width="1600" height="900" fill="#f7f5ef"/>
+    <path d="M0 0 H1600" stroke="#ff8a1f" stroke-width="10"/>
+    <text x="64" y="62" class="kicker">03 / MODEL PROPOSES, GO CONTROLS, SANDBOX EXECUTES</text>
+    <text x="64" y="104" class="title">AI execution loop</text>
+    <g filter="url(#shadow)"><g>
+        <path d="M 315 182.5 L 395 182.5" fill="none" stroke="#43524d" stroke-width="3"  marker-end="url(#arrow)" />
+
+      </g>
+<g>
+        <path d="M 645 182.5 L 725 182.5" fill="none" stroke="#43524d" stroke-width="3"  marker-end="url(#arrow)" />
+
+      </g>
+<g>
+        <path d="M 975 182.5 L 1055 182.5" fill="none" stroke="#43524d" stroke-width="3"  marker-end="url(#arrow)" />
+
+      </g>
+<g>
+        <path d="M 1180 245 L 1180 390" fill="none" stroke="#43524d" stroke-width="3"  marker-end="url(#arrow)" />
+        <rect x="1092.2" y="303.5" width="175.6" height="24" rx="8" fill="#f7f5ef"/><text x="1180" y="321.5" text-anchor="middle" class="edge">tool name + JSON args</text>
+      </g>
+<g>
+        <path d="M 1055 462.5 L 975 462.5" fill="none" stroke="#43524d" stroke-width="3"  marker-end="url(#arrow)" />
+        <rect x="980.4" y="448.5" width="69.19999999999999" height="24" rx="8" fill="#f7f5ef"/><text x="1015" y="466.5" text-anchor="middle" class="edge">execute</text>
+      </g>
+<g>
+        <path d="M 725 462.5 L 645 462.5" fill="none" stroke="#43524d" stroke-width="3"  marker-end="url(#arrow)" />
+        <rect x="593.4" y="448.5" width="183.2" height="24" rx="8" fill="#f7f5ef"/><text x="685" y="466.5" text-anchor="middle" class="edge">result + changed files</text>
+      </g>
+<g>
+        <path d="M 645 462.5 L 1055 182.5" fill="none" stroke="#43524d" stroke-width="3" stroke-dasharray="10 10" marker-end="url(#arrow)" />
+        <rect x="754.6" y="308.5" width="190.79999999999998" height="24" rx="8" fill="#f7f5ef"/><text x="850" y="326.5" text-anchor="middle" class="edge">tool result → next step</text>
+      </g>
+<g>
+        <path d="M 1055 182.5 L 315 462.5" fill="none" stroke="#43524d" stroke-width="3"  marker-end="url(#arrow)" />
+        <rect x="627.6" y="308.5" width="114.8" height="24" rx="8" fill="#f7f5ef"/><text x="685" y="326.5" text-anchor="middle" class="edge">no tool calls</text>
+      </g>
+<g>
+        <path d="M 1305 717.5 L 1055 462.5" fill="none" stroke="#43524d" stroke-width="3" stroke-dasharray="10 10" marker-end="url(#arrow)" />
+        <rect x="1092.2" y="576" width="175.6" height="24" rx="8" fill="#f7f5ef"/><text x="1180" y="594" text-anchor="middle" class="edge">only these operations</text>
+      </g><g>
+        <rect x="65" y="120" width="250" height="125" rx="18" fill="#fff0d3" stroke="#17211e" stroke-width="2.5"/>
+        <circle cx="89" cy="147" r="6" fill="#e63883"/>
+        <text x="107" y="153" class="label">RUN INPUT</text>
+        <text x="87" y="187" class="detail">project prompt +</text><text x="87" y="211" class="detail">attachments</text><text x="87" y="235" class="detail">persisted project files</text>
+      </g>
+<g>
+        <rect x="395" y="120" width="250" height="125" rx="18" fill="#dce9e3" stroke="#17211e" stroke-width="2.5"/>
+        <circle cx="419" cy="147" r="6" fill="#e63883"/>
+        <text x="437" y="153" class="label">SANDBOX SESSION</text>
+        <text x="417" y="187" class="detail">reconnect or create</text><text x="417" y="211" class="detail">restore files from Neon</text>
+      </g>
+<g>
+        <rect x="725" y="120" width="250" height="125" rx="18" fill="#dfe8ff" stroke="#17211e" stroke-width="2.5"/>
+        <circle cx="749" cy="147" r="6" fill="#e63883"/>
+        <text x="767" y="153" class="label">PLAN</text>
+        <text x="747" y="187" class="detail">OpenRouter completion</text><text x="747" y="211" class="detail">ordered implementation</text><text x="747" y="235" class="detail">steps</text>
+      </g>
+<g>
+        <rect x="1055" y="120" width="250" height="125" rx="18" fill="#fff0d3" stroke="#17211e" stroke-width="2.5"/>
+        <circle cx="1079" cy="147" r="6" fill="#e63883"/>
+        <text x="1097" y="153" class="label">TOOL DECISION</text>
+        <text x="1077" y="187" class="detail">OpenRouter returns one</text><text x="1077" y="211" class="detail">tool call</text><text x="1077" y="235" class="detail">parallel calls disabled</text>
+      </g>
+<g>
+        <rect x="1055" y="390" width="250" height="145" rx="18" fill="#dce9e3" stroke="#17211e" stroke-width="2.5"/>
+        <circle cx="1079" cy="417" r="6" fill="#e63883"/>
+        <text x="1097" y="423" class="label">GO EXECUTOR</text>
+        <text x="1077" y="457" class="detail">parse args · constrain</text><text x="1077" y="481" class="detail">app path</text><text x="1077" y="505" class="detail">select allow-listed</text><text x="1077" y="529" class="detail">operation</text>
+      </g>
+<g>
+        <rect x="725" y="390" width="250" height="145" rx="18" fill="#fffefb" stroke="#17211e" stroke-width="2.5"/>
+        <circle cx="749" cy="417" r="6" fill="#2f5e50"/>
+        <text x="767" y="423" class="label">E2B WORKSPACE</text>
+        <text x="747" y="457" class="detail">file ops · shell · npm</text><text x="747" y="481" class="detail">build · Vite preview</text>
+      </g>
+<g>
+        <rect x="395" y="390" width="250" height="145" rx="18" fill="#dfe8ff" stroke="#17211e" stroke-width="2.5"/>
+        <circle cx="419" cy="417" r="6" fill="#e63883"/>
+        <text x="437" y="423" class="label">PERSIST + EMIT</text>
+        <text x="417" y="457" class="detail">upsert project files in</text><text x="417" y="481" class="detail">Neon</text><text x="417" y="505" class="detail">stream tool result over</text><text x="417" y="529" class="detail">WSS</text>
+      </g>
+<g>
+        <rect x="65" y="390" width="250" height="145" rx="18" fill="#fffefb" stroke="#17211e" stroke-width="2.5"/>
+        <circle cx="89" cy="417" r="6" fill="#2f5e50"/>
+        <text x="107" y="423" class="label">EXIT CONDITION</text>
+        <text x="87" y="457" class="detail">model returns no tool</text><text x="87" y="481" class="detail">calls</text><text x="87" y="505" class="detail">or maximum step/error</text>
+      </g>
+<g>
+        <rect x="395" y="665" width="910" height="105" rx="18" fill="#fffefb" stroke="#17211e" stroke-width="2.5"/>
+        <circle cx="419" cy="692" r="6" fill="#2f5e50"/>
+        <text x="437" y="698" class="label">ALLOW-LISTED TOOL SURFACE</text>
+        <text x="417" y="732" class="detail">write / read / delete / move files   ·   list tree   ·   execute command   ·   add/check dependencies   ·</text><text x="417" y="756" class="detail">test build   ·   start server</text>
+      </g></g>
+    <text x="65" y="815" fill="#66706c" class="note">The model does not receive host shell access. Commands run with cwd=/home/user/react-app inside E2B.</text>
+    <text x="1535" y="858" text-anchor="end" class="edge">CUTABLE / VERIFIED FROM REPOSITORY</text>
+  </svg>

@@ -122,16 +122,12 @@ E2B_LIVE_SANDBOX_ID=your-sandbox-id go test ./internal/provider \
 
 ## Architecture
 
-```text
-Browser (Next.js)
-  |  REST + HttpOnly JWT cookie
-  |  authenticated WebSocket events
-  v
-Go API
-  |-- PostgreSQL: users, projects, conversations, generated file index
-  |-- OpenRouter: plans and tool-calling model responses
-  `-- E2B: secured sandbox filesystem, commands, builds, and Vite preview
-```
+![Cutable system context](docs/architecture/diagrams/system-context.png)
+
+The [architecture handbook](docs/architecture/README.md) continues from this
+context view into the user journey, AI execution loop, trust boundaries,
+deployment path, data model, and a claim-to-code verification map. Every
+diagram is supplied as an editable Excalidraw scene plus PNG and SVG exports.
 
 The API does not persist E2B environment access tokens. It receives a fresh
 short-lived credential whenever it creates or reconnects to a sandbox.

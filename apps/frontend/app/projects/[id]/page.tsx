@@ -7,6 +7,7 @@ import EditorSection from "@/app/components/EditorSection";
 import ChatSection from "@/app/components/ChatSection";
 import ProgressLoader from "@/app/components/ProgressLoader";
 import ProviderKeyDialog from "@/app/components/ProviderKeyDialog";
+import Brand from "@/app/components/Brand";
 import { useCreateSandbox, useProject, useProjectFiles, useSandboxInfo } from "@/app/hooks/useProjectQueries";
 import { useWebSocket } from "@/app/hooks/useWebSocket";
 import { useAgentSession } from "@/app/hooks/useAgentSession";
@@ -244,7 +245,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
     <main className="flex h-screen flex-col overflow-hidden bg-white">
       <header className="flex h-14 items-center justify-between border-b border-stone-200 bg-[#fafaf8] px-4">
         <div className="flex min-w-0 items-center gap-3">
-          <a href="/" className="text-sm font-semibold tracking-tight text-stone-950">Cutable</a>
+          <Brand compact />
           <span className="h-4 w-px bg-stone-300" />
           <span className="max-w-64 truncate text-xs text-stone-500">{project?.title || "Project workspace"}</span>
           <span className="h-4 w-px bg-stone-300" />

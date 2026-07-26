@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+    <title id="title">Trust, data and delivery</title>
+    <desc id="desc">04 / boundaries + reproducible production path</desc>
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#43524d"/></marker>
+      <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="4" stdDeviation="7" flood-opacity=".08"/></filter>
+    </defs>
+    <style>
+      text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; fill: #17211e; }
+      .title { font-size: 39px; font-weight: 700; letter-spacing: -1.2px; }
+      .kicker { font-size: 16px; font-weight: 650; letter-spacing: 1.6px; fill: #2f5e50; }
+      .label { font-size: 17px; font-weight: 750; letter-spacing: .5px; }
+      .detail { font-size: 16px; fill: #66706c; }
+      .edge { font-size: 13px; font-weight: 650; fill: #43524d; }
+      .note { font-size: 16px; font-weight: 600; }
+    </style>
+    <rect width="1600" height="900" fill="#f7f5ef"/>
+    <path d="M0 0 H1600" stroke="#ff8a1f" stroke-width="10"/>
+    <text x="64" y="62" class="kicker">04 / BOUNDARIES + REPRODUCIBLE PRODUCTION PATH</text>
+    <text x="64" y="104" class="title">Trust, data and delivery</text>
+    <g filter="url(#shadow)"><g>
+        <path d="M 360 200 L 470 200" fill="none" stroke="#43524d" stroke-width="3"  marker-end="url(#arrow)" />
+        <rect x="388" y="186" width="54" height="24" rx="8" fill="#f7f5ef"/><text x="415" y="204" text-anchor="middle" class="edge">HTTPS</text>
+      </g>
+<g>
+        <path d="M 770 200 L 880 200" fill="none" stroke="#43524d" stroke-width="3"  marker-end="url(#arrow)" />
+        <rect x="775.2" y="186" width="99.6" height="24" rx="8" fill="#f7f5ef"/><text x="825" y="204" text-anchor="middle" class="edge">HTTPS / WSS</text>
+      </g>
+<g>
+        <path d="M 1180 200 L 1290 200" fill="none" stroke="#43524d" stroke-width="3"  marker-end="url(#arrow)" />
+        <rect x="1192.8" y="186" width="84.39999999999999" height="24" rx="8" fill="#f7f5ef"/><text x="1235" y="204" text-anchor="middle" class="edge">SQL / TLS</text>
+      </g>
+<g>
+        <path d="M 310 572.5 L 390 572.5" fill="none" stroke="#43524d" stroke-width="3"  marker-end="url(#arrow)" />
+        <rect x="326.8" y="558.5" width="46.4" height="24" rx="8" fill="#f7f5ef"/><text x="350" y="576.5" text-anchor="middle" class="edge">push</text>
+      </g>
+<g>
+        <path d="M 640 572.5 L 720 572.5" fill="none" stroke="#43524d" stroke-width="3"  marker-end="url(#arrow)" />
+        <rect x="580.8" y="558.5" width="198.39999999999998" height="24" rx="8" fill="#f7f5ef"/><text x="680" y="576.5" text-anchor="middle" class="edge">publish immutable digest</text>
+      </g>
+<g>
+        <path d="M 970 572.5 L 1050 572.5" fill="none" stroke="#43524d" stroke-width="3"  marker-end="url(#arrow)" />
+        <rect x="960.2" y="558.5" width="99.6" height="24" rx="8" fill="#f7f5ef"/><text x="1010" y="576.5" text-anchor="middle" class="edge">deploy spec</text>
+      </g>
+<g>
+        <path d="M 1300 572.5 L 1380 572.5" fill="none" stroke="#43524d" stroke-width="3"  marker-end="url(#arrow)" />
+        <rect x="1313" y="558.5" width="54" height="24" rx="8" fill="#f7f5ef"/><text x="1340" y="576.5" text-anchor="middle" class="edge">Nomad</text>
+      </g>
+<g>
+        <path d="M 1295 720 L 1460 635" fill="none" stroke="#43524d" stroke-width="3" stroke-dasharray="10 10" marker-end="url(#arrow)" />
+        <rect x="1312.5" y="663.5" width="130" height="24" rx="8" fill="#f7f5ef"/><text x="1377.5" y="681.5" text-anchor="middle" class="edge">read-only mount</text>
+      </g><g>
+        <rect x="60" y="105" width="300" height="190" rx="18" fill="#fff0d3" stroke="#17211e" stroke-width="2.5"/>
+        <circle cx="84" cy="132" r="6" fill="#e63883"/>
+        <text x="102" y="138" class="label">BROWSER TRUST ZONE</text>
+        <text x="82" y="172" class="detail">Secure HttpOnly auth cookie</text><text x="82" y="196" class="detail">BYOK values: sessionStorage</text><text x="82" y="220" class="detail">only</text><text x="82" y="244" class="detail">attachments checked before</text><text x="82" y="268" class="detail">upload</text>
+      </g>
+<g>
+        <rect x="470" y="105" width="300" height="190" rx="18" fill="#fffefb" stroke="#17211e" stroke-width="2.5"/>
+        <circle cx="494" cy="132" r="6" fill="#2f5e50"/>
+        <text x="512" y="138" class="label">PUBLIC EDGE</text>
+        <text x="492" y="172" class="detail">Vercel frontend</text><text x="492" y="196" class="detail">TLS / HTTPS</text><text x="492" y="220" class="detail">exact backend origin</text>
+      </g>
+<g>
+        <rect x="880" y="105" width="300" height="190" rx="18" fill="#dce9e3" stroke="#17211e" stroke-width="2.5"/>
+        <circle cx="904" cy="132" r="6" fill="#e63883"/>
+        <text x="922" y="138" class="label">CONTROL PLANE</text>
+        <text x="902" y="172" class="detail">Go API on Myprod</text><text x="902" y="196" class="detail">JWT + owner checks</text><text x="902" y="220" class="detail">request limits + tool</text><text x="902" y="244" class="detail">allow-list</text>
+      </g>
+<g>
+        <rect x="1290" y="105" width="250" height="190" rx="18" fill="#dfe8ff" stroke="#17211e" stroke-width="2.5"/>
+        <circle cx="1314" cy="132" r="6" fill="#e63883"/>
+        <text x="1332" y="138" class="label">DATA PLANE</text>
+        <text x="1312" y="172" class="detail">Neon TLS</text><text x="1312" y="196" class="detail">relational ownership</text><text x="1312" y="220" class="detail">cascade deletion</text>
+      </g>
+<g>
+        <rect x="60" y="510" width="250" height="125" rx="18" fill="#fffefb" stroke="#17211e" stroke-width="2.5"/>
+        <circle cx="84" cy="537" r="6" fill="#2f5e50"/>
+        <text x="102" y="543" class="label">SOURCE</text>
+        <text x="82" y="577" class="detail">GitHub main</text>
+      </g>
+<g>
+        <rect x="390" y="510" width="250" height="125" rx="18" fill="#fffefb" stroke="#17211e" stroke-width="2.5"/>
+        <circle cx="414" cy="537" r="6" fill="#2f5e50"/>
+        <text x="432" y="543" class="label">CI</text>
+        <text x="412" y="577" class="detail">test + Docker buildx</text><text x="412" y="601" class="detail">amd64 / arm64</text>
+      </g>
+<g>
+        <rect x="720" y="510" width="250" height="125" rx="18" fill="#dfe8ff" stroke="#17211e" stroke-width="2.5"/>
+        <circle cx="744" cy="537" r="6" fill="#e63883"/>
+        <text x="762" y="543" class="label">REGISTRY</text>
+        <text x="742" y="577" class="detail">GHCR digest</text>
+      </g>
+<g>
+        <rect x="1050" y="510" width="250" height="125" rx="18" fill="#dce9e3" stroke="#17211e" stroke-width="2.5"/>
+        <circle cx="1074" cy="537" r="6" fill="#e63883"/>
+        <text x="1092" y="543" class="label">SCHEDULER</text>
+        <text x="1072" y="577" class="detail">Myprod renders Nomad</text><text x="1072" y="601" class="detail">job + Traefik route</text>
+      </g>
+<g>
+        <rect x="1380" y="510" width="160" height="125" rx="18" fill="#dce9e3" stroke="#17211e" stroke-width="2.5"/>
+        <circle cx="1404" cy="537" r="6" fill="#e63883"/>
+        <text x="1422" y="543" class="label">RUNTIME</text>
+        <text x="1402" y="577" class="detail">distroless</text><text x="1402" y="601" class="detail">nonroot</text>
+      </g>
+<g>
+        <rect x="1050" y="720" width="490" height="90" rx="18" fill="#fee2e2" stroke="#17211e" stroke-width="2.5"/>
+        <circle cx="1074" cy="747" r="6" fill="#e63883"/>
+        <text x="1092" y="753" class="label">HOST SECRET FILE</text>
+        <text x="1072" y="787" class="detail">0400 · uid 65532 · read-only mount at</text><text x="1072" y="811" class="detail">/run/secrets/cutable.env</text>
+      </g></g>
+    <text x="62" y="365" fill="#66706c" class="note">External execution boundary: OpenRouter receives inference input; E2B receives generated workspace operations.</text>
+    <text x="1535" y="858" text-anchor="end" class="edge">CUTABLE / VERIFIED FROM REPOSITORY</text>
+  </svg>
