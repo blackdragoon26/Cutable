@@ -1,28 +1,50 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --font-instrument-sans: "Avenir Next", "Segoe UI", Arial, Helvetica, sans-serif;
-  --font-indie-flower: "Bradley Hand", "Segoe Print", cursive;
+  --background: #f6f6f3;
+  --foreground: #181816;
+  --surface: #ffffff;
+  --muted: #6c6c66;
+  --border: #deded8;
+  --accent: #2f4f46;
+  --font-sans: "Avenir Next", "Segoe UI", Arial, Helvetica, sans-serif;
+  color-scheme: light;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-instrument-sans);
-  --font-indie: var(--font-indie-flower);
+  --font-sans: "Avenir Next", "Segoe UI", Arial, Helvetica, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--background);
 }
 
 body {
+  min-height: 100vh;
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-instrument-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: #dce7e2;
+  color: #18211e;
+}
+
+@keyframes thinking-slide {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(420%); }
 }

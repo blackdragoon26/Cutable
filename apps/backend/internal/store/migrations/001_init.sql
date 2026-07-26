@@ -1,7 +1,9 @@
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY,
+    name TEXT NOT NULL DEFAULT '',
     email TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
+    password_hash TEXT,
+    google_sub TEXT UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

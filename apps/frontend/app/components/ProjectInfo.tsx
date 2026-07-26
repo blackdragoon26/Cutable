@@ -2,25 +2,30 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import type { AgentChatMessage } from "@/app/hooks/useAgentSession";
+import AgentThinking from "./AgentThinking";
 
 interface ProjectInfoProps {
   title?: string | null;
   initialPrompt?: string | null;
+  attachmentNames?: string[];
   planSteps?: string[];
   recentMessages?: AgentChatMessage[];
   onAskPrompt?: (prompt: string) => void | Promise<void>;
   isAgentConnected?: boolean;
   isProcessing?: boolean;
+  isThinking?: boolean;
 }
 
 export default function ProjectInfo({
   title,
   initialPrompt,
+  attachmentNames = [],
   planSteps = [],
   recentMessages = [],
   onAskPrompt,
   isAgentConnected = false,
   isProcessing = false,
+  isThinking = false,
 }: ProjectInfoProps) {
   const [askPrompt, setAskPrompt] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,11 +50,12 @@ export default function ProjectInfo({
   const askInputDisabled = !isAgentConnected || isSubmitting || isProcessing;
 
   return (
-    <div className="flex flex-col h-full bg-white overflow-y-auto">
+    <div className="flex h-full flex-col overflow-y-auto bg-[#fafaf8]">
       {/* Project Title Bubble */}
       <div className="px-4 pt-6 pb-4">
-        <div className="bg-neutral-100 rounded-2xl px-5 py-4">
-          <h1 className="text-lg font-normal text-neutral-700 leading-relaxed">
+        <div className="rounded-lg border border-stone-200 bg-white px-4 py-3">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-stone-400">Project brief</p>
+          <h1 className="text-sm font-medium leading-relaxed text-stone-800">
             {title || "Untitled Cutable project"}
           </h1>
         </div>
@@ -64,6 +70,24 @@ export default function ProjectInfo({
           {initialPrompt || "No initial prompt saved for this project yet."}
         </p>
       </div>
+
+      {attachmentNames.length > 0 && (
+        <div className="px-4 pb-5">
+          <h2 className="text-sm font-bold text-neutral-900 mb-2">
+            Reference Files
+          </h2>
+          <ul className="flex flex-wrap gap-2">
+            {attachmentNames.map((name) => (
+              <li
+                key={name}
+                className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-700"
+              >
+                {name}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Plan */}
       <div className="px-4 pb-5">
@@ -93,6 +117,7 @@ export default function ProjectInfo({
         <h2 className="text-sm font-bold text-neutral-900 mb-2">
           Recent Activity
         </h2>
+        {isThinking && <div className="mb-3"><AgentThinking /></div>}
         {recentActivity.length > 0 ? (
           <ul className="space-y-2">
             {recentActivity.map((message) => (
@@ -135,20 +160,12 @@ export default function ProjectInfo({
                 }
               }}
               disabled={!isAgentConnected}
-              className="w-full px-3 py-2 text-xs font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full rounded-lg bg-stone-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isAgentConnected ? "Start Building" : "Connecting..."}
             </button>
           </div>
         )}
-        <div className="mb-2 flex gap-2">
-          <button className="flex-1 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded transition-colors">
-            Back to Preview
-          </button>
-          <button className="px-3 py-1.5 text-xs font-medium text-neutral-900 bg-neutral-100 rounded transition-colors">
-            Code
-          </button>
-        </div>
         <form className="relative" onSubmit={handleAskSubmit}>
           <input
             type="text"
@@ -162,25 +179,17 @@ export default function ProjectInfo({
                   : "Ask Cutable..."
             }
             disabled={askInputDisabled}
-            className="w-full px-3 py-2 pr-12 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-400 bg-white disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 pr-12 text-sm focus:border-[#557b6f] focus:outline-none focus:ring-2 focus:ring-[#557b6f]/15 disabled:cursor-not-allowed disabled:opacity-60"
           />
           <button
             type="submit"
             aria-label="Send request to Cutable"
             disabled={askInputDisabled || !askPrompt.trim()}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-bold disabled:bg-neutral-300"
+            className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md bg-stone-900 text-xs font-semibold text-white disabled:bg-stone-300"
           >
-            {isSubmitting ? "..." : "L"}
+            {isSubmitting ? "…" : "↑"}
           </button>
         </form>
-        <div className="flex gap-2 mt-2">
-          <button className="flex-1 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-100 rounded transition-colors border border-neutral-200">
-            Visual edits
-          </button>
-          <button className="flex-1 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-100 rounded transition-colors border border-neutral-200">
-            Chat
-          </button>
-        </div>
       </div>
     </div>
   );

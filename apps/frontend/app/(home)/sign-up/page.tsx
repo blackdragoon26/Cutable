@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import GoogleAuthButton from "@/app/components/GoogleAuthButton";
 import { register } from "@/app/lib/api";
 
 export default function SignUpPage() {
@@ -13,158 +14,87 @@ export default function SignUpPage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setIsLoading(true);
     setError(null);
-
     try {
       await register(email, password, name);
-      // Redirect to home page after successful registration
-      router.push("/");
-    } catch (err: any) {
-      console.error("Registration error:", err);
-      setError(err.message || "Failed to create account. Please try again.");
+      const requested = new URLSearchParams(window.location.search).get("next");
+      router.push(requested?.startsWith("/") && !requested.startsWith("//") ? requested : "/");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to create your account.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen bg-white flex items-center justify-center">
-      <section className="w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
-        <div className="max-w-md mx-auto flex flex-col items-center gap-6 sm:gap-8 lg:gap-10">
-          <div className="w-full flex flex-col items-center gap-4 sm:gap-5">
-            <h1 className="w-full text-center text-3xl sm:text-4xl md:text-5xl font-semibold leading-tight tracking-[-2px]">
-              Create your account
-            </h1>
+    <main className="grid min-h-screen bg-[#f6f6f3] lg:grid-cols-[1.05fr_0.95fr]">
+      <section className="hidden border-r border-stone-200 bg-[#e8ebe5] p-12 lg:flex lg:flex-col lg:justify-between">
+        <Link href="/" className="text-base font-semibold tracking-tight text-stone-950">Cutable</Link>
+        <div className="max-w-lg">
+          <p className="mb-5 text-xs font-semibold uppercase tracking-[0.18em] text-[#47665d]">Start with context</p>
+          <h1 className="text-5xl font-semibold leading-[1.04] tracking-[-0.045em] text-stone-950">
+            Give the agent a brief, a screenshot, or the source you already have.
+          </h1>
+          <p className="mt-6 max-w-md text-base leading-7 text-stone-600">
+            Cutable plans the work, writes the application, verifies its build, and keeps the result inspectable.
+          </p>
+        </div>
+        <p className="text-sm text-stone-500">Your API keys remain server-side.</p>
+      </section>
 
-            <p className="w-full text-center text-neutral-800 text-base sm:text-lg font-normal font-['Indie_Flower']">
-              Start building beautiful websites today
-            </p>
+      <section className="flex items-center justify-center px-5 py-12 sm:px-10">
+        <div className="w-full max-w-sm">
+          <Link href="/" className="mb-10 block text-base font-semibold text-stone-950 lg:hidden">Cutable</Link>
+          <h2 className="text-3xl font-semibold tracking-[-0.035em] text-stone-950">Create your account</h2>
+          <p className="mt-2 text-sm leading-6 text-stone-600">Set up your private build workspace.</p>
+
+          <div className="mt-7"><GoogleAuthButton /></div>
+          <div className="my-5 flex items-center gap-3 text-xs text-stone-400">
+            <span className="h-px flex-1 bg-stone-200" />or use email<span className="h-px flex-1 bg-stone-200" />
           </div>
 
-          <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4 sm:gap-5">
-            {error && (
-              <div className="w-full p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-600">{error}</p>
-              </div>
-            )}
-
-            <div className="w-full">
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-neutral-800 mb-2"
-              >
-                Name
-              </label>
-              <div className="w-full min-h-[56px] p-3 sm:p-4 bg-white rounded-2xl shadow-[0px_6px_24px_0px_rgba(0,0,0,0.08),0px_2.5px_4px_-1px_rgba(0,0,0,0.08),0px_1.5px_1px_-1px_rgba(0,0,0,0.16),0px_1.5px_4px_-1px_rgba(0,0,0,0.12)] border border-neutral-200 flex items-center">
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="John Doe"
-                  className="flex-1 bg-transparent text-neutral-800 text-sm sm:text-base font-normal placeholder:text-neutral-500 outline-none border-none focus:outline-none"
-                  required
-                  disabled={isLoading}
-                />
-              </div>
+          {error && (
+            <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+              {error}
             </div>
+          )}
 
-            <div className="w-full">
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-neutral-800 mb-2"
-              >
-                Email
-              </label>
-              <div className="w-full min-h-[56px] p-3 sm:p-4 bg-white rounded-2xl shadow-[0px_6px_24px_0px_rgba(0,0,0,0.08),0px_2.5px_4px_-1px_rgba(0,0,0,0.08),0px_1.5px_1px_-1px_rgba(0,0,0,0.16),0px_1.5px_4px_-1px_rgba(0,0,0,0.12)] border border-neutral-200 flex items-center">
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="flex-1 bg-transparent text-neutral-800 text-sm sm:text-base font-normal placeholder:text-neutral-500 outline-none border-none focus:outline-none"
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-
-            <div className="w-full">
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-neutral-800 mb-2"
-              >
-                Password
-              </label>
-              <div className="w-full min-h-[56px] p-3 sm:p-4 bg-white rounded-2xl shadow-[0px_6px_24px_0px_rgba(0,0,0,0.08),0px_2.5px_4px_-1px_rgba(0,0,0,0.08),0px_1.5px_1px_-1px_rgba(0,0,0,0.16),0px_1.5px_4px_-1px_rgba(0,0,0,0.12)] border border-neutral-200 flex items-center">
-                <input
-                  type="password"
-                  id="password"
-                  name="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Create a strong password"
-                  className="flex-1 bg-transparent text-neutral-800 text-sm sm:text-base font-normal placeholder:text-neutral-500 outline-none border-none focus:outline-none"
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-
-            <div className="w-full">
-              <label className="flex items-start gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 mt-0.5 rounded border-neutral-300 text-neutral-800 focus:ring-2 focus:ring-neutral-400"
-                  required
-                />
-                <span className="text-neutral-700 text-sm">
-                  I agree to the{" "}
-                  <Link
-                    href="/terms"
-                    className="text-neutral-800 hover:text-neutral-600 transition-colors underline"
-                  >
-                    Terms of Service
-                  </Link>{" "}
-                  and{" "}
-                  <Link
-                    href="/privacy"
-                    className="text-neutral-800 hover:text-neutral-600 transition-colors underline"
-                  >
-                    Privacy Policy
-                  </Link>
-                </span>
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full min-h-[56px] px-4 py-3 bg-neutral-800 text-white rounded-2xl font-medium text-sm sm:text-base hover:bg-neutral-700 transition-colors shadow-[0px_6px_24px_0px_rgba(0,0,0,0.08),0px_2.5px_4px_-1px_rgba(0,0,0,0.08)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? "Creating account..." : "Create account"}
+          <form onSubmit={handleSubmit} className="space-y-3.5">
+            <Field label="Name" id="name">
+              <input id="name" autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" disabled={isLoading} required className="w-full bg-transparent px-3.5 py-3 text-sm outline-none placeholder:text-stone-400" />
+            </Field>
+            <Field label="Email" id="email">
+              <input id="email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" disabled={isLoading} required className="w-full bg-transparent px-3.5 py-3 text-sm outline-none placeholder:text-stone-400" />
+            </Field>
+            <Field label="Password" id="password">
+              <input id="password" type="password" autoComplete="new-password" minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" disabled={isLoading} required className="w-full bg-transparent px-3.5 py-3 text-sm outline-none placeholder:text-stone-400" />
+            </Field>
+            <p className="text-xs leading-5 text-stone-500">
+              By continuing, you agree to Cutable’s terms and privacy policy.
+            </p>
+            <button type="submit" disabled={isLoading} className="min-h-12 w-full rounded-lg bg-stone-900 px-4 text-sm font-medium text-white transition-colors hover:bg-stone-700 disabled:opacity-50">
+              {isLoading ? "Creating account…" : "Create account"}
             </button>
           </form>
 
-          <div className="w-full text-center">
-            <p className="text-neutral-700 text-sm">
-              Already have an account?{" "}
-              <Link
-                href="/sign-in"
-                className="text-neutral-800 font-medium hover:text-neutral-600 transition-colors"
-              >
-                Sign in
-              </Link>
-            </p>
-          </div>
+          <p className="mt-6 text-center text-sm text-stone-600">
+            Already have an account?{" "}
+            <Link href="/sign-in" className="font-medium text-stone-950 underline-offset-4 hover:underline">Sign in</Link>
+          </p>
         </div>
       </section>
     </main>
+  );
+}
+
+function Field({ label, id, children }: { label: string; id: string; children: React.ReactNode }) {
+  return (
+    <label htmlFor={id} className="block text-sm font-medium text-stone-700">
+      <span className="mb-2 block">{label}</span>
+      <span className="block rounded-lg border border-stone-300 bg-white shadow-sm transition focus-within:border-[#557b6f] focus-within:ring-2 focus-within:ring-[#557b6f]/15">{children}</span>
+    </label>
   );
 }

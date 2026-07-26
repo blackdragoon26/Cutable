@@ -3,17 +3,17 @@ import PromptInput from "./PromptInput";
 
 export default function HeroSection() {
   return (
-    <section className="w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
-      <div className="max-w-4xl mx-auto flex flex-col items-center gap-6 sm:gap-8 lg:gap-10">
-        <div className="w-full flex flex-col items-center gap-4 sm:gap-5">
+    <section className="w-full px-4 py-14 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+      <div className="mx-auto flex max-w-4xl flex-col items-center gap-9">
+        <div className="flex w-full flex-col items-center gap-5">
           <HeroBanner />
 
-          <h1 className="w-full max-w-2xl text-center text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold leading-tight tracking-[-2px]">
-            Build beautiful websites in a single prompt
+          <h1 className="w-full max-w-3xl text-balance text-center text-4xl font-semibold leading-[1.04] tracking-[-0.045em] text-stone-950 sm:text-5xl md:text-6xl">
+            Turn a clear idea into a working React application.
           </h1>
 
-          <p className="w-full text-center text-neutral-800 text-base sm:text-lg font-normal font-['Indie_Flower']">
-            Learn smarter, faster, and more interactively.
+          <p className="max-w-2xl text-balance text-center text-base leading-7 text-stone-600 sm:text-lg">
+            Describe what you need, add visual or technical references, and review the generated code and live preview in one workspace.
           </p>
         </div>
 

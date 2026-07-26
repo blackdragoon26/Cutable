@@ -110,12 +110,8 @@ const STAGE_LABELS: Record<string, string> = {
 const formatAgentEvent = (event: WebSocketEvent): FormattedAgentEvent | null => {
   switch (event.e) {
     // Connection events
-    case "connected": {
-      return {
-        type: "TEXT_MESSAGE",
-        contents: `Connected to project${event.authenticated ? " (authenticated)" : ""}`,
-      };
-    }
+    case "connected":
+      return null;
 
     // Stage updates - don't create messages for these, they're handled separately
     case "stage_update":
@@ -147,10 +143,7 @@ const formatAgentEvent = (event: WebSocketEvent): FormattedAgentEvent | null => 
       };
     }
     case "agent_thinking": {
-      return {
-        type: "TEXT_MESSAGE",
-        contents: event.message || "Thinking...",
-      };
+      return null;
     }
     case "agent_completed": {
       return null; // Don't show completion message, final response will be shown
@@ -364,6 +357,7 @@ export function useAgentSession(projectId: string) {
   const [messages, setMessages] = useState<AgentChatMessage[]>([]);
   const [planSteps, setPlanSteps] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
   const [stageInfo, setStageInfo] = useState<StageInfo | null>(null);
 
   const appendMessage = useCallback((message: AgentChatMessage) => {
@@ -419,6 +413,7 @@ export function useAgentSession(projectId: string) {
         // Mark processing complete when stage is complete
         if (event.stage === "complete") {
           setIsProcessing(false);
+          setIsThinking(false);
         }
         return;
       }
@@ -430,7 +425,21 @@ export function useAgentSession(projectId: string) {
           progress: 0,
         });
         setIsProcessing(false);
+        setIsThinking(false);
         return;
+      }
+
+      if (event.e === "agent_thinking") {
+        setIsThinking(true);
+        return;
+      }
+      if (
+        event.e === "tool_started" ||
+        event.e === "agent_final_response" ||
+        event.e === "agent_error" ||
+        event.e === "agent_completed"
+      ) {
+        setIsThinking(false);
       }
 
       // Track processing state
@@ -474,6 +483,7 @@ export function useAgentSession(projectId: string) {
     setMessages([]);
     setPlanSteps([]);
     setIsProcessing(false);
+    setIsThinking(false);
     setStageInfo(null);
   }, []);
 
@@ -486,6 +496,7 @@ export function useAgentSession(projectId: string) {
     handleAgentEvent,
     planSteps,
     isProcessing,
+    isThinking,
     stageInfo,
     stageLabel,
     clearMessages,

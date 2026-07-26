@@ -134,6 +134,6 @@ MAINEOF`
     `cd /home/user/react-app && node -e "const fs = require('fs'); const tsconfig = JSON.parse(fs.readFileSync('tsconfig.json', 'utf8')); tsconfig.compilerOptions = tsconfig.compilerOptions || {}; tsconfig.compilerOptions.baseUrl = '.'; tsconfig.compilerOptions.paths = { '@/*': ['./src/*'] }; fs.writeFileSync('tsconfig.json', JSON.stringify(tsconfig, null, 2));"`,
   ])
   .setStartCmd(
-    "cd /home/user/react-app && npm run dev || echo 'React Template Ready'",
+    "cd /home/user/react-app && npm run dev -- --host 0.0.0.0 --port 5173 --strictPort || echo 'React Template Ready'",
     waitForTimeout(30000)
   );

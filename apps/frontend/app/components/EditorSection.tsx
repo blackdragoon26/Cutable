@@ -34,18 +34,8 @@ export interface EditorSectionRef {
 }
 
 const defaultFile: OpenFile = {
-  path: "src/pages/App.tsx",
-  code: `import { TodoApp } from "@/components/TodoApp";
-
-const App = () => {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      <TodoApp />
-    </div>
-  );
-};
-
-export default App;`,
+  path: "src/App.tsx",
+  code: "// Select a generated file to inspect its source.\n",
   language: "typescript",
 };
 
@@ -78,6 +68,14 @@ const EditorSection = forwardRef<EditorSectionRef, EditorSectionProps>(
       new Map([[initialFile.path, initialFileCode]])
     );
     const [previewHtml, setPreviewHtml] = useState("");
+    const [hasOpenedPreview, setHasOpenedPreview] = useState(false);
+
+    useEffect(() => {
+      if (sandboxPreviewUrl && !hasOpenedPreview) {
+        setActiveViewTab("preview");
+        setHasOpenedPreview(true);
+      }
+    }, [sandboxPreviewUrl, hasOpenedPreview]);
 
     // Load file content for active file using React Query
     const { data: activeFileData } = useFileContent(projectId, activeFile);
@@ -210,7 +208,7 @@ const EditorSection = forwardRef<EditorSectionRef, EditorSectionProps>(
   };
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex h-full flex-col bg-white">
       {/* File Tabs */}
       <div className="flex border-b border-neutral-200 bg-white overflow-x-auto">
         {openFiles.map((file) => (
@@ -239,12 +237,13 @@ const EditorSection = forwardRef<EditorSectionRef, EditorSectionProps>(
         ))}
       </div>
 
-      <div className="flex border-b border-neutral-200 bg-neutral-50">
+      <div className="flex items-center justify-between border-b border-stone-200 bg-[#fafaf8]">
+        <div className="flex">
         <button
           onClick={() => setActiveViewTab("code")}
           className={`px-4 py-2 text-xs font-medium transition-colors ${
             activeViewTab === "code"
-              ? "text-blue-600 border-b-2 border-blue-600 bg-white"
+              ? "border-b-2 border-stone-900 bg-white text-stone-950"
               : "text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100"
           }`}
         >
@@ -254,12 +253,23 @@ const EditorSection = forwardRef<EditorSectionRef, EditorSectionProps>(
           onClick={() => setActiveViewTab("preview")}
           className={`px-4 py-2 text-xs font-medium transition-colors ${
             activeViewTab === "preview"
-              ? "text-blue-600 border-b-2 border-blue-600 bg-white"
+              ? "border-b-2 border-stone-900 bg-white text-stone-950"
               : "text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100"
           }`}
         >
           Preview
         </button>
+        </div>
+        {sandboxPreviewUrl && (
+          <a
+            href={sandboxPreviewUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mr-3 text-xs font-medium text-stone-500 transition hover:text-stone-950"
+          >
+            Open preview ↗
+          </a>
+        )}
       </div>
 
       {/* Content Area */}
@@ -286,11 +296,12 @@ const EditorSection = forwardRef<EditorSectionRef, EditorSectionProps>(
             }}
           />
         ) : (
-          <div className="h-full w-full bg-white overflow-hidden relative">
+          <div className="relative h-full w-full overflow-hidden bg-[#f6f6f3]">
             {sandboxPreviewUrl ? (
               <iframe
-                src={sandboxPreviewUrl}
-                className="w-full h-full border-0"
+                key={sandboxPreviewUrl}
+                src={`${sandboxPreviewUrl}?cutable=${encodeURIComponent(projectId)}`}
+                className="h-full w-full border-0 bg-white"
                 title="Sandbox Preview"
                 sandbox="allow-same-origin allow-scripts allow-forms allow-modals allow-popups"
               />

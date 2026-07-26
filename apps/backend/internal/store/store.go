@@ -21,19 +21,41 @@ type Store struct {
 
 type User struct {
 	ID           uuid.UUID
+	Name         string
 	Email        string
 	PasswordHash string
+	GoogleSub    string
 }
 
 type Project struct {
-	ID            uuid.UUID `json:"id"`
-	Title         string    `json:"title"`
-	InitialPrompt string    `json:"initialPrompt"`
-	UserID        uuid.UUID `json:"userId"`
-	SandboxID     *string   `json:"sandboxId"`
-	SandboxURL    *string   `json:"sandboxUrl"`
-	CreatedAt     time.Time `json:"createdAt"`
-	UpdatedAt     time.Time `json:"updatedAt"`
+	ID            uuid.UUID           `json:"id"`
+	Title         string              `json:"title"`
+	InitialPrompt string              `json:"initialPrompt"`
+	UserID        uuid.UUID           `json:"userId"`
+	SandboxID     *string             `json:"sandboxId"`
+	SandboxURL    *string             `json:"sandboxUrl"`
+	Attachments   []ProjectAttachment `json:"attachments"`
+	CreatedAt     time.Time           `json:"createdAt"`
+	UpdatedAt     time.Time           `json:"updatedAt"`
+}
+
+type ProjectAttachmentInput struct {
+	Name     string `json:"name"`
+	Kind     string `json:"kind"`
+	MimeType string `json:"mimeType"`
+	Content  string `json:"content"`
+	Size     int    `json:"size"`
+}
+
+type ProjectAttachment struct {
+	ID        uuid.UUID `json:"id"`
+	ProjectID uuid.UUID `json:"projectId"`
+	Name      string    `json:"name"`
+	Kind      string    `json:"kind"`
+	MimeType  string    `json:"mimeType"`
+	Content   string    `json:"content"`
+	Size      int       `json:"size"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 type Conversation struct {
@@ -98,40 +120,134 @@ func (s *Store) Migrate(ctx context.Context) error {
 	return nil
 }
 
-func (s *Store) CreateUser(ctx context.Context, email, passwordHash string) (User, error) {
-	user := User{ID: uuid.New(), Email: strings.ToLower(strings.TrimSpace(email)), PasswordHash: passwordHash}
+func (s *Store) CreateUser(ctx context.Context, name, email, passwordHash string) (User, error) {
+	user := User{ID: uuid.New(), Name: strings.TrimSpace(name), Email: strings.ToLower(strings.TrimSpace(email)), PasswordHash: passwordHash}
 	err := s.pool.QueryRow(ctx,
-		`INSERT INTO users (id, email, password_hash) VALUES ($1,$2,$3) RETURNING id,email,password_hash`,
-		user.ID, user.Email, user.PasswordHash,
-	).Scan(&user.ID, &user.Email, &user.PasswordHash)
+		`INSERT INTO users (id,name,email,password_hash) VALUES ($1,$2,$3,$4)
+		 RETURNING id,name,email,COALESCE(password_hash,''),COALESCE(google_sub,'')`,
+		user.ID, user.Name, user.Email, user.PasswordHash,
+	).Scan(&user.ID, &user.Name, &user.Email, &user.PasswordHash, &user.GoogleSub)
 	return user, err
 }
 
 func (s *Store) UserByEmail(ctx context.Context, email string) (User, error) {
 	var user User
 	err := s.pool.QueryRow(ctx,
-		`SELECT id,email,password_hash FROM users WHERE email=$1`,
+		`SELECT id,name,email,COALESCE(password_hash,''),COALESCE(google_sub,'') FROM users WHERE email=$1`,
 		strings.ToLower(strings.TrimSpace(email)),
-	).Scan(&user.ID, &user.Email, &user.PasswordHash)
+	).Scan(&user.ID, &user.Name, &user.Email, &user.PasswordHash, &user.GoogleSub)
 	return user, err
 }
 
 func (s *Store) UserByID(ctx context.Context, id uuid.UUID) (User, error) {
 	var user User
-	err := s.pool.QueryRow(ctx, `SELECT id,email,password_hash FROM users WHERE id=$1`, id).
-		Scan(&user.ID, &user.Email, &user.PasswordHash)
+	err := s.pool.QueryRow(ctx,
+		`SELECT id,name,email,COALESCE(password_hash,''),COALESCE(google_sub,'') FROM users WHERE id=$1`, id).
+		Scan(&user.ID, &user.Name, &user.Email, &user.PasswordHash, &user.GoogleSub)
 	return user, err
 }
 
-func (s *Store) CreateProject(ctx context.Context, userID uuid.UUID, title, prompt string) (Project, error) {
+func (s *Store) UpsertGoogleUser(ctx context.Context, name, email, googleSub string) (User, error) {
+	name = strings.TrimSpace(name)
+	email = strings.ToLower(strings.TrimSpace(email))
+	googleSub = strings.TrimSpace(googleSub)
+	if email == "" || googleSub == "" {
+		return User{}, errors.New("Google identity is incomplete")
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return User{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	var user User
+	err = tx.QueryRow(ctx, `
+		SELECT id,name,email,COALESCE(password_hash,''),COALESCE(google_sub,'')
+		FROM users
+		WHERE google_sub=$1 OR email=$2
+		ORDER BY CASE WHEN google_sub=$1 THEN 0 ELSE 1 END
+		LIMIT 1
+		FOR UPDATE`, googleSub, email).
+		Scan(&user.ID, &user.Name, &user.Email, &user.PasswordHash, &user.GoogleSub)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		user = User{ID: uuid.New(), Name: name, Email: email, GoogleSub: googleSub}
+		err = tx.QueryRow(ctx, `
+			INSERT INTO users (id,name,email,password_hash,google_sub)
+			VALUES ($1,$2,$3,NULL,$4)
+			RETURNING id,name,email,COALESCE(password_hash,''),google_sub`,
+			user.ID, user.Name, user.Email, user.GoogleSub).
+			Scan(&user.ID, &user.Name, &user.Email, &user.PasswordHash, &user.GoogleSub)
+	case err != nil:
+		return User{}, err
+	case user.GoogleSub != "" && user.GoogleSub != googleSub:
+		return User{}, errors.New("email is already linked to another Google account")
+	default:
+		err = tx.QueryRow(ctx, `
+			UPDATE users
+			SET name=CASE WHEN $2 <> '' THEN $2 ELSE name END,
+			    email=$3,
+			    google_sub=$4,
+			    updated_at=NOW()
+			WHERE id=$1
+			RETURNING id,name,email,COALESCE(password_hash,''),google_sub`,
+			user.ID, name, email, googleSub).
+			Scan(&user.ID, &user.Name, &user.Email, &user.PasswordHash, &user.GoogleSub)
+	}
+	if err != nil {
+		return User{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return User{}, err
+	}
+	return user, nil
+}
+
+func (s *Store) CreateProject(ctx context.Context, userID uuid.UUID, title, prompt string, attachments []ProjectAttachmentInput) (Project, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return Project{}, err
+	}
+	defer tx.Rollback(ctx)
+
 	var p Project
-	err := s.pool.QueryRow(ctx, `
+	err = tx.QueryRow(ctx, `
 		INSERT INTO projects (id,title,initial_prompt,user_id)
 		VALUES ($1,$2,$3,$4)
 		RETURNING id,title,initial_prompt,user_id,sandbox_id,sandbox_url,created_at,updated_at`,
 		uuid.New(), title, prompt, userID,
 	).Scan(&p.ID, &p.Title, &p.InitialPrompt, &p.UserID, &p.SandboxID, &p.SandboxURL, &p.CreatedAt, &p.UpdatedAt)
-	return p, err
+	if err != nil {
+		return Project{}, err
+	}
+	p.Attachments = make([]ProjectAttachment, 0, len(attachments))
+	for _, input := range attachments {
+		var attachment ProjectAttachment
+		err = tx.QueryRow(ctx, `
+			INSERT INTO project_attachments (id,project_id,name,kind,mime_type,content,size_bytes)
+			VALUES ($1,$2,$3,$4,$5,$6,$7)
+			RETURNING id,project_id,name,kind,mime_type,content,size_bytes,created_at`,
+			uuid.New(), p.ID, input.Name, input.Kind, input.MimeType, input.Content, input.Size,
+		).Scan(
+			&attachment.ID,
+			&attachment.ProjectID,
+			&attachment.Name,
+			&attachment.Kind,
+			&attachment.MimeType,
+			&attachment.Content,
+			&attachment.Size,
+			&attachment.CreatedAt,
+		)
+		if err != nil {
+			return Project{}, err
+		}
+		p.Attachments = append(p.Attachments, attachment)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Project{}, err
+	}
+	return p, nil
 }
 
 func (s *Store) Projects(ctx context.Context, userID uuid.UUID) ([]Project, error) {
@@ -159,7 +275,39 @@ func (s *Store) Project(ctx context.Context, userID, projectID uuid.UUID) (Proje
 		SELECT id,title,initial_prompt,user_id,sandbox_id,sandbox_url,created_at,updated_at
 		FROM projects WHERE id=$1 AND user_id=$2`, projectID, userID).
 		Scan(&p.ID, &p.Title, &p.InitialPrompt, &p.UserID, &p.SandboxID, &p.SandboxURL, &p.CreatedAt, &p.UpdatedAt)
+	if err != nil {
+		return p, err
+	}
+	p.Attachments, err = s.projectAttachments(ctx, p.ID)
 	return p, err
+}
+
+func (s *Store) projectAttachments(ctx context.Context, projectID uuid.UUID) ([]ProjectAttachment, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT id,project_id,name,kind,mime_type,content,size_bytes,created_at
+		FROM project_attachments WHERE project_id=$1 ORDER BY created_at`, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	attachments := []ProjectAttachment{}
+	for rows.Next() {
+		var attachment ProjectAttachment
+		if err := rows.Scan(
+			&attachment.ID,
+			&attachment.ProjectID,
+			&attachment.Name,
+			&attachment.Kind,
+			&attachment.MimeType,
+			&attachment.Content,
+			&attachment.Size,
+			&attachment.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		attachments = append(attachments, attachment)
+	}
+	return attachments, rows.Err()
 }
 
 func (s *Store) SaveSandbox(ctx context.Context, projectID uuid.UUID, sandboxID, sandboxURL string) error {

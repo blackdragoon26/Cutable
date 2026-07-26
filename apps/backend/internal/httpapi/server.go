@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,8 +10,10 @@ import (
 	"net/http"
 	"net/mail"
 	"net/url"
+	"path"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -32,12 +35,16 @@ type Server struct {
 	store   *store.Store
 	runner  *agent.Runner
 	sandbox *provider.E2B
+	google  googleOAuthProvider
 	logger  *slog.Logger
 	mux     *http.ServeMux
 }
 
 func New(cfg config.Config, database *store.Store, runner *agent.Runner, sandbox *provider.E2B, logger *slog.Logger) *Server {
-	s := &Server{cfg: cfg, store: database, runner: runner, sandbox: sandbox, logger: logger, mux: http.NewServeMux()}
+	s := &Server{
+		cfg: cfg, store: database, runner: runner, sandbox: sandbox,
+		google: defaultGoogleOAuthProvider(), logger: logger, mux: http.NewServeMux(),
+	}
 	s.routes()
 	return s
 }
@@ -51,6 +58,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/auth/register", s.register)
 	s.mux.HandleFunc("POST /api/auth/login", s.login)
 	s.mux.HandleFunc("POST /api/auth/logout", s.logout)
+	s.mux.HandleFunc("GET /api/auth/config", s.authConfig)
+	s.mux.HandleFunc("GET /api/auth/google", s.googleLogin)
+	s.mux.HandleFunc("GET /api/auth/google/callback", s.googleCallback)
 	s.mux.Handle("GET /api/projects", s.auth(http.HandlerFunc(s.listProjects)))
 	s.mux.Handle("POST /api/projects", s.auth(http.HandlerFunc(s.createProject)))
 	s.mux.Handle("GET /api/projects/{id}", s.auth(http.HandlerFunc(s.getProject)))
@@ -78,6 +88,7 @@ func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 	var input struct {
+		Name     string `json:"name"`
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
@@ -85,7 +96,8 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	input.Email = strings.ToLower(strings.TrimSpace(input.Email))
-	if _, err := mail.ParseAddress(input.Email); err != nil || len(input.Password) < 8 {
+	input.Name = strings.TrimSpace(input.Name)
+	if _, err := mail.ParseAddress(input.Email); err != nil || len(input.Password) < 8 || len(input.Name) > 100 {
 		writeError(w, http.StatusBadRequest, "valid email and password of at least 8 characters are required")
 		return
 	}
@@ -94,7 +106,7 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, err)
 		return
 	}
-	user, err := s.store.CreateUser(r.Context(), input.Email, string(hash))
+	user, err := s.store.CreateUser(r.Context(), input.Name, input.Email, string(hash))
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -158,10 +170,11 @@ func (s *Server) listProjects(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) createProject(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Title         string `json:"title"`
-		InitialPrompt string `json:"initialPrompt"`
+		Title         string                         `json:"title"`
+		InitialPrompt string                         `json:"initialPrompt"`
+		Attachments   []store.ProjectAttachmentInput `json:"attachments"`
 	}
-	if !decodeJSON(w, r, &input) {
+	if !decodeJSONLimit(w, r, &input, 6<<20) {
 		return
 	}
 	input.Title = strings.TrimSpace(input.Title)
@@ -170,7 +183,12 @@ func (s *Server) createProject(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "title and initialPrompt are required and must be within limits")
 		return
 	}
-	project, err := s.store.CreateProject(r.Context(), userID(r.Context()), input.Title, input.InitialPrompt)
+	attachments, err := validateAttachments(input.Attachments)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	project, err := s.store.CreateProject(r.Context(), userID(r.Context()), input.Title, input.InitialPrompt, attachments)
 	if err != nil {
 		s.internalError(w, r, err)
 		return
@@ -265,7 +283,12 @@ func (s *Server) createSandbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if project.SandboxID != nil {
-		if connected, err := s.sandbox.Connect(r.Context(), *project.SandboxID); err == nil {
+		if connected, err := s.sandbox.Connect(r.Context(), *project.SandboxID); err == nil &&
+			connected.EnvdAccessToken != nil {
+			if err := s.prepareSandboxPreview(r.Context(), project.ID, connected.SandboxID, *connected.EnvdAccessToken); err != nil {
+				writeError(w, http.StatusBadGateway, "sandbox preview restart failed")
+				return
+			}
 			writeJSON(w, http.StatusOK, map[string]any{
 				"message": "Sandbox reconnected", "sandboxId": connected.SandboxID,
 				"previewUrl": s.sandbox.PreviewURL(connected.SandboxID),
@@ -278,6 +301,11 @@ func (s *Server) createSandbox(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, "sandbox creation failed: "+err.Error())
 		return
 	}
+	if err := s.prepareSandboxPreview(r.Context(), project.ID, created.SandboxID, *created.EnvdAccessToken); err != nil {
+		_ = s.sandbox.Kill(context.Background(), created.SandboxID)
+		writeError(w, http.StatusBadGateway, "sandbox preview preparation failed")
+		return
+	}
 	preview := s.sandbox.PreviewURL(created.SandboxID)
 	if err := s.store.SaveSandbox(r.Context(), project.ID, created.SandboxID, preview); err != nil {
 		_ = s.sandbox.Kill(context.Background(), created.SandboxID)
@@ -287,6 +315,33 @@ func (s *Server) createSandbox(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"message": "Sandbox created", "sandboxId": created.SandboxID, "previewUrl": preview,
 	})
+}
+
+func (s *Server) prepareSandboxPreview(ctx context.Context, projectID uuid.UUID, sandboxID, accessToken string) error {
+	files, err := s.store.Files(ctx, projectID)
+	if err != nil {
+		return err
+	}
+	for _, file := range files {
+		filePath := "/home/user/react-app/" + strings.TrimPrefix(path.Clean("/"+file.Path), "/")
+		if err := s.sandbox.WriteFile(ctx, sandboxID, accessToken, filePath, []byte(file.Content)); err != nil {
+			return err
+		}
+	}
+	result, err := s.sandbox.Run(ctx, sandboxID, accessToken,
+		"pkill -f 'node .*/node_modules/.bin/[v]ite' >/dev/null 2>&1 || true; "+
+			"nohup npm run dev -- --host 0.0.0.0 --port 5173 --strictPort >/tmp/cutable-vite.log 2>&1 </dev/null & "+
+			"for attempt in $(seq 1 20); do "+
+			"if curl -fsS http://127.0.0.1:5173/ >/dev/null && curl -fsS http://127.0.0.1:5173/src/main.tsx >/dev/null; then exit 0; fi; "+
+			"sleep 1; done; cat /tmp/cutable-vite.log >&2; exit 1",
+		"/home/user/react-app")
+	if err != nil {
+		return err
+	}
+	if result.ExitCode != 0 {
+		return fmt.Errorf("preview process exited with code %d: %s", result.ExitCode, strings.TrimSpace(result.Stderr))
+	}
+	return nil
 }
 
 func (s *Server) deleteSandbox(w http.ResponseWriter, r *http.Request) {
@@ -423,7 +478,11 @@ func (s *Server) internalError(w http.ResponseWriter, r *http.Request, err error
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
-	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+	return decodeJSONLimit(w, r, target, 1<<20)
+}
+
+func decodeJSONLimit(w http.ResponseWriter, r *http.Request, target any, maxBytes int64) bool {
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBytes))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON request")
@@ -454,4 +513,107 @@ func oneOf(value string, allowed ...string) bool {
 		}
 	}
 	return false
+}
+
+func validateAttachments(inputs []store.ProjectAttachmentInput) ([]store.ProjectAttachmentInput, error) {
+	const (
+		maxFiles          = 3
+		maxTextFileBytes  = 100 * 1024
+		maxTextTotal      = 200 * 1024
+		maxImageFileBytes = 2 * 1024 * 1024
+		maxImageTotal     = 3 * 1024 * 1024
+	)
+	if len(inputs) > maxFiles {
+		return nil, fmt.Errorf("a maximum of %d attachments is allowed", maxFiles)
+	}
+	allowedTextExtensions := map[string]bool{
+		".css": true, ".csv": true, ".go": true, ".html": true, ".java": true,
+		".js": true, ".json": true, ".jsx": true, ".md": true, ".py": true,
+		".rs": true, ".sql": true, ".ts": true, ".tsx": true, ".txt": true,
+		".xml": true, ".yaml": true, ".yml": true,
+	}
+	allowedImageTypes := map[string]string{
+		".jpeg": "image/jpeg",
+		".jpg":  "image/jpeg",
+		".png":  "image/png",
+		".webp": "image/webp",
+	}
+	seen := map[string]bool{}
+	textTotal := 0
+	imageTotal := 0
+	validated := make([]store.ProjectAttachmentInput, 0, len(inputs))
+	for _, input := range inputs {
+		input.Name = strings.TrimSpace(input.Name)
+		if input.Name == "" || len(input.Name) > 180 || path.Base(input.Name) != input.Name || strings.Contains(input.Name, "\\") {
+			return nil, errors.New("attachment names must be simple filenames of at most 180 characters")
+		}
+		key := strings.ToLower(input.Name)
+		if seen[key] {
+			return nil, fmt.Errorf("duplicate attachment %q", input.Name)
+		}
+		seen[key] = true
+		extension := strings.ToLower(path.Ext(input.Name))
+		if input.Kind == "" {
+			if allowedImageTypes[extension] != "" {
+				input.Kind = "image"
+			} else {
+				input.Kind = "text"
+			}
+		}
+		switch input.Kind {
+		case "text":
+			if !allowedTextExtensions[extension] {
+				return nil, fmt.Errorf("attachment %q is not a supported text or source file", input.Name)
+			}
+			if !utf8.ValidString(input.Content) || strings.ContainsRune(input.Content, '\x00') {
+				return nil, fmt.Errorf("attachment %q must contain UTF-8 text", input.Name)
+			}
+			size := len([]byte(input.Content))
+			if size == 0 || size > maxTextFileBytes {
+				return nil, fmt.Errorf("attachment %q must be between 1 byte and 100 KB", input.Name)
+			}
+			textTotal += size
+			if textTotal > maxTextTotal {
+				return nil, errors.New("text attachments may not exceed 200 KB in total")
+			}
+			input.Size = size
+			if strings.TrimSpace(input.MimeType) == "" {
+				input.MimeType = "text/plain"
+			}
+		case "image":
+			expectedMime := allowedImageTypes[extension]
+			if expectedMime == "" {
+				return nil, fmt.Errorf("attachment %q is not a supported PNG, JPEG, or WebP image", input.Name)
+			}
+			input.MimeType = strings.ToLower(strings.TrimSpace(input.MimeType))
+			if input.MimeType != expectedMime {
+				return nil, fmt.Errorf("attachment %q has an invalid image type", input.Name)
+			}
+			prefix := "data:" + expectedMime + ";base64,"
+			encoded, ok := strings.CutPrefix(input.Content, prefix)
+			if !ok || encoded == "" {
+				return nil, fmt.Errorf("attachment %q must be a base64 image data URL", input.Name)
+			}
+			decoded, err := base64.StdEncoding.DecodeString(encoded)
+			if err != nil {
+				return nil, fmt.Errorf("attachment %q contains invalid base64 image data", input.Name)
+			}
+			size := len(decoded)
+			if size == 0 || size > maxImageFileBytes {
+				return nil, fmt.Errorf("attachment %q must be between 1 byte and 2 MB", input.Name)
+			}
+			if detected := http.DetectContentType(decoded); detected != expectedMime {
+				return nil, fmt.Errorf("attachment %q content does not match its image type", input.Name)
+			}
+			imageTotal += size
+			if imageTotal > maxImageTotal {
+				return nil, errors.New("image attachments may not exceed 3 MB in total")
+			}
+			input.Size = size
+		default:
+			return nil, fmt.Errorf("attachment %q has an invalid kind", input.Name)
+		}
+		validated = append(validated, input)
+	}
+	return validated, nil
 }

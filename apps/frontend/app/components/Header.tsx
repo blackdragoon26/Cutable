@@ -1,42 +1,34 @@
 import Link from "next/link";
 
 export default function Header() {
-  const navItems = [
-    { label: "Home", href: "#" },
-    { label: "Features", href: "#" },
-    { label: "Pricing", href: "#" },
-    { label: "Resources", href: "#" },
-  ];
-
   return (
-    <header className="w-full px-4 sm:px-6 lg:px-8 py-4 sm:py-6 fixed top-0 left-0 right-0 z-50 bg-white">
-      <nav className="max-w-7xl mx-auto flex items-center justify-between">
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-stone-200/90 bg-[#f6f6f3]/90 px-4 py-4 backdrop-blur-xl sm:px-6 lg:px-8">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between">
+        <Link
+          href="/"
+          className="text-base font-semibold tracking-tight text-stone-950"
+        >
+          Cutable
+        </Link>
+
+        <span className="hidden text-sm text-stone-500 md:block">
+          AI workspace for React applications
+        </span>
+
         <div className="flex items-center gap-2">
-          <Link href="/">
-            <div className="flex flex-col text-xl font-bold hover:text-neutral-600 transition-colors cursor-pointer">Cutable</div>
-          </Link>
-        </div>
-
-        <nav className="hidden md:flex items-center gap-6 lg:gap-8">
-          {navItems.map((item) => (
-            <a
-              key={item.label}
-              href={item.href}
-              className="text-black text-sm lg:text-base font-normal hover:text-neutral-600 transition-colors"
-            >
-              {item.label}
-            </a>
-          ))}
-        </nav>
-
-        <Link href="/sign-in">
-          <button
-          className="px-4 sm:px-5 lg:px-6 py-2 sm:py-2.5 bg-neutral-100 hover:bg-neutral-200 rounded-lg text-black text-sm sm:text-base font-normal transition-colors cursor-pointer"
-          aria-label="Sign in"
+          <Link
+            href="/sign-in"
+            className="rounded-md px-3 py-2 text-sm text-stone-600 transition-colors hover:bg-white/70 hover:text-stone-950"
           >
             Sign in
-          </button>
-        </Link>
+          </Link>
+          <Link
+            href="/sign-up"
+            className="rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700"
+          >
+            Create account
+          </Link>
+        </div>
       </nav>
     </header>
   );

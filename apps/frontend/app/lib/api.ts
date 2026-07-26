@@ -4,6 +4,41 @@ type ApiResponse<T> = T & {
   message: string;
 };
 
+export interface ProjectAttachmentInput {
+  name: string;
+  kind: "text" | "image";
+  mimeType: string;
+  content: string;
+  size: number;
+}
+
+export interface ProjectAttachment extends ProjectAttachmentInput {
+  id: string;
+  projectId: string;
+  createdAt: string;
+}
+
+export interface Project {
+  id: string;
+  title: string;
+  initialPrompt: string;
+  attachments: ProjectAttachment[];
+  sandboxId: string | null;
+  sandboxUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -22,7 +57,10 @@ async function apiRequest<T>(
     const error = await response
       .json()
       .catch(() => ({ error: "Request failed" }));
-    throw new Error(error.error || `HTTP error! status: ${response.status}`);
+    throw new ApiError(
+      error.error || `HTTP error! status: ${response.status}`,
+      response.status
+    );
   }
 
   return response.json();
@@ -42,10 +80,23 @@ export async function login(email: string, password: string) {
   });
 }
 
-export async function createProject(title: string, initialPrompt: string) {
-  return apiRequest<ApiResponse<{ project: any }>>(`/api/projects`, {
+export async function getAuthConfig() {
+  return apiRequest<{ google: { enabled: boolean } }>(`/api/auth/config`);
+}
+
+export function googleAuthURL(next = "/") {
+  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  return `${API_BASE_URL}/api/auth/google?next=${encodeURIComponent(safeNext)}`;
+}
+
+export async function createProject(
+  title: string,
+  initialPrompt: string,
+  attachments: ProjectAttachmentInput[] = []
+) {
+  return apiRequest<ApiResponse<{ project: Project }>>(`/api/projects`, {
     method: "POST",
-    body: JSON.stringify({ title, initialPrompt }),
+    body: JSON.stringify({ title, initialPrompt, attachments }),
   });
 }
 
@@ -54,7 +105,7 @@ export async function getProjects() {
 }
 
 export async function getProject(projectId: string) {
-  return apiRequest<ApiResponse<{ project: any }>>(
+  return apiRequest<ApiResponse<{ project: Project }>>(
     `/api/projects/${projectId}`
   );
 }

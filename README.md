@@ -14,6 +14,7 @@ service.
 
 - Go 1.26 HTTP and WebSocket API
 - JWT authentication in secure, HttpOnly cookies
+- Optional Google OAuth 2.0 sign-in with state validation and PKCE
 - PostgreSQL persistence with embedded SQL migrations
 - OpenRouter chat completions with function/tool calling
 - Secured E2B sandbox lifecycle, filesystem, command, build, and preview support
@@ -40,6 +41,12 @@ service.
 
 2. Fill in `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `E2B_API_KEY`, and a
    random `JWT_SECRET` of at least 32 characters. Do not commit `.env`.
+
+   To enable Google sign-in, create a Google OAuth client of type **Web
+   application**, add
+   `http://localhost:3010/api/auth/google/callback` as an authorized redirect
+   URI, then set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. Keep the client
+   secret only in `.env` or a production secret manager.
 
 3. Install the two JavaScript dependency sets:
 
@@ -133,7 +140,8 @@ short-lived credential whenever it creates or reconnects to a sandbox.
 See [.env.example](.env.example) for the complete list. `OPENROUTER_MODEL` is
 required intentionally; there is no hidden fallback model. For HTTPS
 deployments set `COOKIE_SECURE=true`, use an HTTPS `FRONTEND_ORIGIN`, and use a
-`wss://` frontend WebSocket URL.
+`wss://` frontend WebSocket URL. Set `GOOGLE_REDIRECT_URL` to the exact
+production API callback URL registered in Google Cloud.
 
 ## Repository layout
 
