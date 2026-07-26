@@ -153,7 +153,7 @@ func (s *Server) logout(w http.ResponseWriter, _ *http.Request) {
 		MaxAge:   -1,
 		HttpOnly: true,
 		Secure:   s.cfg.CookieSecure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: authCookieSameSite(s.cfg.CookieSecure),
 	})
 	writeJSON(w, http.StatusOK, map[string]any{"message": "Logged out"})
 }
@@ -496,15 +496,22 @@ func (s *Server) setAuthCookie(w http.ResponseWriter, id uuid.UUID) error {
 		MaxAge:   86400,
 		HttpOnly: true,
 		Secure:   s.cfg.CookieSecure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: authCookieSameSite(s.cfg.CookieSecure),
 	})
 	return nil
+}
+
+func authCookieSameSite(secure bool) http.SameSite {
+	if secure {
+		return http.SameSiteNoneMode
+	}
+	return http.SameSiteLaxMode
 }
 
 func (s *Server) cors(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
-		if origin == s.cfg.FrontendOrigin {
+		if s.cfg.AllowsFrontendOrigin(origin) {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			w.Header().Set("Vary", "Origin")

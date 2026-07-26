@@ -2,9 +2,12 @@ package httpapi
 
 import (
 	"encoding/base64"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/blackdragoon26/cutable/apps/backend/internal/config"
 	"github.com/blackdragoon26/cutable/apps/backend/internal/store"
 )
 
@@ -50,5 +53,50 @@ func TestValidateAttachments(t *testing.T) {
 				t.Fatal("validateAttachments() succeeded, want error")
 			}
 		})
+	}
+}
+
+func TestCORSAllowsOnlyConfiguredCredentialedOrigins(t *testing.T) {
+	server := &Server{cfg: config.Config{
+		FrontendOrigins: []string{
+			"https://cutable.sankalpjha.dev",
+			"https://cutable.vercel.app",
+		},
+	}}
+	handler := server.cors(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+
+	for _, origin := range []string{
+		"https://cutable.sankalpjha.dev",
+		"https://cutable.vercel.app",
+	} {
+		request := httptest.NewRequest(http.MethodOptions, "/api/auth/me", nil)
+		request.Header.Set("Origin", origin)
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, request)
+		if got := recorder.Header().Get("Access-Control-Allow-Origin"); got != origin {
+			t.Fatalf("allowed origin header = %q, want %q", got, origin)
+		}
+		if got := recorder.Header().Get("Access-Control-Allow-Credentials"); got != "true" {
+			t.Fatalf("credential header = %q", got)
+		}
+	}
+
+	request := httptest.NewRequest(http.MethodOptions, "/api/auth/me", nil)
+	request.Header.Set("Origin", "https://attacker.example")
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+	if got := recorder.Header().Get("Access-Control-Allow-Origin"); got != "" {
+		t.Fatalf("untrusted origin unexpectedly allowed: %q", got)
+	}
+}
+
+func TestAuthCookieSameSite(t *testing.T) {
+	if got := authCookieSameSite(false); got != http.SameSiteLaxMode {
+		t.Fatalf("local SameSite = %v", got)
+	}
+	if got := authCookieSameSite(true); got != http.SameSiteNoneMode {
+		t.Fatalf("secure SameSite = %v", got)
 	}
 }

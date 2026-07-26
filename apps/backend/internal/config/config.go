@@ -14,6 +14,7 @@ type Config struct {
 	DatabaseURL        string
 	JWTSecret          string
 	FrontendOrigin     string
+	FrontendOrigins    []string
 	OpenRouterAPIKey   string
 	OpenRouterModel    string
 	E2BAPIKey          string
@@ -29,11 +30,13 @@ type Config struct {
 }
 
 func Load() (Config, error) {
+	frontendOrigin := normalizeOrigin(envOr("FRONTEND_ORIGIN", "http://localhost:3000"))
 	cfg := Config{
 		Port:               envOr("PORT", "3010"),
 		DatabaseURL:        strings.TrimSpace(os.Getenv("DATABASE_URL")),
 		JWTSecret:          strings.TrimSpace(os.Getenv("JWT_SECRET")),
-		FrontendOrigin:     envOr("FRONTEND_ORIGIN", "http://localhost:3000"),
+		FrontendOrigin:     frontendOrigin,
+		FrontendOrigins:    frontendOrigins(frontendOrigin),
 		OpenRouterAPIKey:   strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY")),
 		OpenRouterModel:    strings.TrimSpace(os.Getenv("OPENROUTER_MODEL")),
 		E2BAPIKey:          strings.TrimSpace(os.Getenv("E2B_API_KEY")),
@@ -78,8 +81,44 @@ func Load() (Config, error) {
 	return cfg, nil
 }
 
+func (c Config) AllowsFrontendOrigin(origin string) bool {
+	origin = normalizeOrigin(origin)
+	for _, allowed := range c.FrontendOrigins {
+		if origin == allowed {
+			return true
+		}
+	}
+	return false
+}
+
 func (c Config) GoogleAuthEnabled() bool {
 	return c.GoogleClientID != "" && c.GoogleClientSecret != ""
+}
+
+func frontendOrigins(primary string) []string {
+	configured := envOr(
+		"FRONTEND_ORIGINS",
+		"https://cutable.sankalpjha.dev,https://cutable.vercel.app",
+	)
+	candidates := append([]string{primary}, strings.Split(configured, ",")...)
+	seen := make(map[string]struct{}, len(candidates))
+	origins := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		origin := normalizeOrigin(candidate)
+		if origin == "" {
+			continue
+		}
+		if _, exists := seen[origin]; exists {
+			continue
+		}
+		seen[origin] = struct{}{}
+		origins = append(origins, origin)
+	}
+	return origins
+}
+
+func normalizeOrigin(value string) string {
+	return strings.TrimRight(strings.TrimSpace(value), "/")
 }
 
 func envOr(name, fallback string) string {

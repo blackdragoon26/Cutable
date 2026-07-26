@@ -139,7 +139,10 @@ sent only with build or preview requests, and are not stored by the Go API.
 See [.env.example](.env.example) for the complete list. `OPENROUTER_MODEL` is
 required intentionally; there is no hidden fallback model. For HTTPS
 deployments set `COOKIE_SECURE=true`, use an HTTPS `FRONTEND_ORIGIN`, and use a
-`wss://` frontend WebSocket URL. Set `GOOGLE_REDIRECT_URL` to the exact
+`wss://` frontend WebSocket URL. `FRONTEND_ORIGINS` is a comma-separated,
+exact-match allow-list for credentialed CORS and WebSocket requests; include
+every production and preview hostname that should use the API. Set
+`GOOGLE_REDIRECT_URL` to the exact
 production API callback URL registered in Google Cloud.
 
 The backend container reads an optional `/run/secrets/cutable.env` file before

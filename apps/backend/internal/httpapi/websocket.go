@@ -82,7 +82,7 @@ func (s *Server) websocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		OriginPatterns: []string{originHost(s.cfg.FrontendOrigin)},
+		OriginPatterns: frontendOriginPatterns(s.cfg.FrontendOrigins),
 	})
 	if err != nil {
 		s.logger.Error("websocket accept failed", "error", err)
@@ -161,6 +161,16 @@ func (s *Server) websocket(w http.ResponseWriter, r *http.Request) {
 			_ = writer.send(r.Context(), map[string]any{"e": "error", "message": fmt.Sprintf("unknown message type %q", message.Type)})
 		}
 	}
+}
+
+func frontendOriginPatterns(origins []string) []string {
+	patterns := make([]string, 0, len(origins))
+	for _, origin := range origins {
+		if host := originHost(origin); host != "" {
+			patterns = append(patterns, host)
+		}
+	}
+	return patterns
 }
 
 func originHost(origin string) string {

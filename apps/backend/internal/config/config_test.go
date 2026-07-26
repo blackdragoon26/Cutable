@@ -23,6 +23,33 @@ func TestLoadRequiresStrongConfiguration(t *testing.T) {
 	if cfg.GoogleAuthEnabled() {
 		t.Fatal("Google auth unexpectedly enabled")
 	}
+	if !cfg.AllowsFrontendOrigin("http://localhost:3000") ||
+		!cfg.AllowsFrontendOrigin("https://cutable.vercel.app") ||
+		!cfg.AllowsFrontendOrigin("https://cutable.sankalpjha.dev") {
+		t.Fatalf("expected Cutable frontend origins, got %v", cfg.FrontendOrigins)
+	}
+}
+
+func TestLoadAcceptsExplicitFrontendOrigins(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgresql://localhost/cutable")
+	t.Setenv("JWT_SECRET", "01234567890123456789012345678901")
+	t.Setenv("OPENROUTER_API_KEY", "test-openrouter")
+	t.Setenv("OPENROUTER_MODEL", "test/model")
+	t.Setenv("E2B_API_KEY", "test-e2b")
+	t.Setenv("FRONTEND_ORIGIN", "https://primary.example/")
+	t.Setenv("FRONTEND_ORIGINS", "https://preview.example, https://primary.example/")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.FrontendOrigin != "https://primary.example" {
+		t.Fatalf("primary frontend origin = %q", cfg.FrontendOrigin)
+	}
+	if !cfg.AllowsFrontendOrigin("https://preview.example/") ||
+		!cfg.AllowsFrontendOrigin("https://primary.example") {
+		t.Fatalf("explicit frontend origins not accepted: %v", cfg.FrontendOrigins)
+	}
 }
 
 func TestLoadRejectsShortJWTSecret(t *testing.T) {
