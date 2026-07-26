@@ -70,17 +70,24 @@ def contained_canvas(mark: Image.Image, size: int, padding: int) -> Image.Image:
     return canvas
 
 
+def enlarge_v2_mark(mark: Image.Image) -> Image.Image:
+    """Tighten the supplied frame so the flower reads at favicon scale."""
+    inset = round(mark.width * 0.047)
+    cropped = mark.crop((inset, inset, mark.width - inset, mark.height - inset))
+    return cropped.resize(mark.size, Image.Resampling.LANCZOS)
+
+
 def main() -> None:
     PUBLIC.mkdir(parents=True, exist_ok=True)
     if SOURCE_V2.exists():
-        mark = Image.open(SOURCE_V2).convert("RGBA")
+        mark = enlarge_v2_mark(Image.open(SOURCE_V2).convert("RGBA"))
     else:
         mark = remove_edge_background(Image.open(SOURCE))
 
     mark.save(PUBLIC / "cutable-mark.png", optimize=True)
-    contained_canvas(mark, 512, 20).save(APP / "icon.png", optimize=True)
-    contained_canvas(mark, 180, 8).save(APP / "apple-icon.png", optimize=True)
-    contained_canvas(mark, 256, 10).save(
+    contained_canvas(mark, 512, 8).save(APP / "icon.png", optimize=True)
+    contained_canvas(mark, 180, 4).save(APP / "apple-icon.png", optimize=True)
+    contained_canvas(mark, 256, 4).save(
         APP / "favicon.ico",
         sizes=[(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)],
     )

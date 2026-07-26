@@ -278,7 +278,7 @@ const EditorSection = forwardRef<EditorSectionRef, EditorSectionProps>(
           <MonacoEditor
             height="100%"
             language={getLanguageFromPath(activeFile)}
-            theme="vs-light"
+            theme="vs-dark"
             value={currentCode}
             onChange={handleEditorChange}
             options={{

@@ -35,8 +35,8 @@ export default function Brand({ compact = false, className = "" }: BrandProps) {
       className={`group inline-flex items-center font-semibold tracking-tight text-stone-950 ${className}`}
     >
       <span
-        className={`relative mr-2 shrink-0 overflow-hidden rounded-md bg-[#d9d9d7] ${
-          compact ? "h-7 w-7" : "h-8 w-8"
+        className={`relative mr-2.5 shrink-0 overflow-hidden rounded-lg bg-[#27272a] shadow-[0_0_0_1px_rgba(255,255,255,0.08)] ${
+          compact ? "h-8 w-8" : "h-9 w-9"
         }`}
         aria-hidden="true"
       >
@@ -44,7 +44,7 @@ export default function Brand({ compact = false, className = "" }: BrandProps) {
           src="/brand/cutable-mark.png"
           alt=""
           fill
-          sizes={compact ? "28px" : "32px"}
+          sizes={compact ? "32px" : "36px"}
           className="object-cover"
           priority
         />
@@ -60,7 +60,7 @@ export default function Brand({ compact = false, className = "" }: BrandProps) {
           <source src="/brand/cutable-hover.mp4" type="video/mp4" />
         </video>
       </span>
-      <span className={compact ? "text-sm" : "text-base"}>Cutable</span>
+      <span className={compact ? "text-sm" : "text-[17px]"}>Cutable</span>
     </Link>
   );
 }
