@@ -4,7 +4,6 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import GoogleAuthButton from "@/app/components/GoogleAuthButton";
-import Brand from "@/app/components/Brand";
 import { login } from "@/app/lib/api";
 
 export default function SignInPage() {
@@ -35,9 +34,8 @@ export default function SignInPage() {
       : new URLSearchParams(window.location.search).get("error");
 
   return (
-    <main className="grid min-h-screen bg-[#f6f6f3] lg:grid-cols-[1.05fr_0.95fr]">
-      <section className="hidden border-r border-stone-200 bg-[#e8ebe5] p-12 lg:flex lg:flex-col lg:justify-between">
-        <Brand />
+    <main className="grid min-h-screen bg-[#f6f6f3] pt-[73px] lg:grid-cols-[1.05fr_0.95fr]">
+      <section className="relative hidden border-r border-stone-200 bg-[#e8ebe5] p-12 lg:flex lg:flex-col lg:justify-center">
         <div className="max-w-lg">
           <p className="mb-5 text-xs font-semibold uppercase tracking-[0.18em] text-[#47665d]">
             Focused build workspace
@@ -49,12 +47,11 @@ export default function SignInPage() {
             Your projects, reference files, generated source, and live preview stay together.
           </p>
         </div>
-        <p className="text-sm text-stone-500">OpenRouter · E2B · Go</p>
+        <p className="absolute bottom-12 text-sm text-stone-500">OpenRouter · E2B · Go</p>
       </section>
 
       <section className="flex items-center justify-center px-5 py-12 sm:px-10">
         <div className="w-full max-w-sm">
-          <Brand className="mb-12 lg:hidden" />
           <h2 className="text-3xl font-semibold tracking-[-0.035em] text-stone-950">Welcome back</h2>
           <p className="mt-2 text-sm leading-6 text-stone-600">Sign in to continue building.</p>
 

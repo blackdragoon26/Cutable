@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Brand from "./Brand";
+import ConnectProviderKeys from "./ConnectProviderKeys";
 
 export default function Header() {
   return (
@@ -20,9 +21,10 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-2">
+          <ConnectProviderKeys />
           <Link
             href="/sign-in"
-            className="rounded-md px-3 py-2 text-sm text-stone-600 transition-colors hover:bg-white/70 hover:text-stone-950"
+            className="hidden rounded-md px-3 py-2 text-sm text-stone-600 transition-colors hover:bg-white/70 hover:text-stone-950 sm:inline-flex"
           >
             Sign in
           </Link>

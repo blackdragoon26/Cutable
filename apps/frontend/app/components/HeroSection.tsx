@@ -1,5 +1,6 @@
 import HeroBanner from "./HeroBanner";
 import PromptInput from "./PromptInput";
+import ConnectProviderKeys from "./ConnectProviderKeys";
 
 export default function HeroSection() {
   return (
@@ -18,6 +19,13 @@ export default function HeroSection() {
         </div>
 
         <PromptInput />
+
+        <div className="flex flex-col items-center gap-3 text-center sm:flex-row">
+          <ConnectProviderKeys variant="hero" />
+          <span className="text-xs text-stone-500">
+            Session-only storage. Your demo runs stay untouched.
+          </span>
+        </div>
       </div>
     </section>
   );

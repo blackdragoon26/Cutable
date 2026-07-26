@@ -48,3 +48,63 @@ textarea {
   0% { transform: translateX(-120%); }
   100% { transform: translateX(420%); }
 }
+
+.sakura-field {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.sakura-petal {
+  --petal-left: 50%;
+  --petal-delay: 0s;
+  --petal-duration: 14s;
+  --petal-opacity: 0.6;
+  --petal-drift: 80px;
+  position: absolute;
+  top: -8%;
+  left: var(--petal-left);
+  width: 11px;
+  height: 8px;
+  border-radius: 85% 15% 75% 25%;
+  background: linear-gradient(135deg, #ffc7da 0%, #f48fb1 58%, #de6f9d 100%);
+  box-shadow: 0 2px 8px rgb(214 104 148 / 18%);
+  opacity: 0;
+  animation: sakura-fall var(--petal-duration) linear var(--petal-delay) infinite;
+  will-change: transform, opacity;
+}
+
+.sakura-petal:nth-child(3n) {
+  width: 8px;
+  height: 6px;
+  filter: blur(0.2px);
+}
+
+.sakura-petal:nth-child(4n) {
+  background: linear-gradient(135deg, #ffe1ec 0%, #f7a7c3 100%);
+}
+
+@keyframes sakura-fall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -10vh, 0) rotate(0deg);
+  }
+  8% {
+    opacity: var(--petal-opacity);
+  }
+  72% {
+    opacity: var(--petal-opacity);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--petal-drift), 116vh, 0) rotate(560deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sakura-petal {
+    display: none;
+  }
+}

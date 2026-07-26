@@ -4,7 +4,6 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import GoogleAuthButton from "@/app/components/GoogleAuthButton";
-import Brand from "@/app/components/Brand";
 import { register } from "@/app/lib/api";
 
 export default function SignUpPage() {
@@ -31,9 +30,8 @@ export default function SignUpPage() {
   };
 
   return (
-    <main className="grid min-h-screen bg-[#f6f6f3] lg:grid-cols-[1.05fr_0.95fr]">
-      <section className="hidden border-r border-stone-200 bg-[#e8ebe5] p-12 lg:flex lg:flex-col lg:justify-between">
-        <Brand />
+    <main className="grid min-h-screen bg-[#f6f6f3] pt-[73px] lg:grid-cols-[1.05fr_0.95fr]">
+      <section className="relative hidden border-r border-stone-200 bg-[#e8ebe5] p-12 lg:flex lg:flex-col lg:justify-center">
         <div className="max-w-lg">
           <p className="mb-5 text-xs font-semibold uppercase tracking-[0.18em] text-[#47665d]">Start with context</p>
           <h1 className="text-5xl font-semibold leading-[1.04] tracking-[-0.045em] text-stone-950">
@@ -43,12 +41,11 @@ export default function SignUpPage() {
             Cutable plans the work, writes the application, verifies its build, and keeps the result inspectable.
           </p>
         </div>
-        <p className="text-sm text-stone-500">Two demo builds included. Your own keys are never stored.</p>
+        <p className="absolute bottom-12 text-sm text-stone-500">Two demo builds included. Your own keys are never stored.</p>
       </section>
 
       <section className="flex items-center justify-center px-5 py-12 sm:px-10">
         <div className="w-full max-w-sm">
-          <Brand className="mb-10 lg:hidden" />
           <h2 className="text-3xl font-semibold tracking-[-0.035em] text-stone-950">Create your account</h2>
           <p className="mt-2 text-sm leading-6 text-stone-600">Set up your private build workspace.</p>
 

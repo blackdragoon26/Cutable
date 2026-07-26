@@ -14,6 +14,7 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "assets/brand/cutable-source.png"
+SOURCE_V2 = ROOT / "assets/brand/cutable-v2-source.png"
 PUBLIC = ROOT / "apps/frontend/public/brand"
 APP = ROOT / "apps/frontend/app"
 
@@ -71,7 +72,10 @@ def contained_canvas(mark: Image.Image, size: int, padding: int) -> Image.Image:
 
 def main() -> None:
     PUBLIC.mkdir(parents=True, exist_ok=True)
-    mark = remove_edge_background(Image.open(SOURCE))
+    if SOURCE_V2.exists():
+        mark = Image.open(SOURCE_V2).convert("RGBA")
+    else:
+        mark = remove_edge_background(Image.open(SOURCE))
 
     mark.save(PUBLIC / "cutable-mark.png", optimize=True)
     contained_canvas(mark, 512, 20).save(APP / "icon.png", optimize=True)
