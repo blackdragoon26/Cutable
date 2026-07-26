@@ -19,6 +19,7 @@ type Config struct {
 	E2BAPIKey          string
 	E2BTemplateAlias   string
 	AgentMaxSteps      int
+	DemoRunLimit       int
 	AgentTimeout       time.Duration
 	SandboxTimeout     time.Duration
 	CookieSecure       bool
@@ -38,6 +39,7 @@ func Load() (Config, error) {
 		E2BAPIKey:          strings.TrimSpace(os.Getenv("E2B_API_KEY")),
 		E2BTemplateAlias:   envOr("E2B_TEMPLATE_ALIAS", "cutable-react-base"),
 		AgentMaxSteps:      envInt("AGENT_MAX_STEPS", 40),
+		DemoRunLimit:       envInt("DEMO_RUN_LIMIT", 2),
 		AgentTimeout:       envDuration("AGENT_TIMEOUT", 12*time.Minute),
 		SandboxTimeout:     envDuration("SANDBOX_TIMEOUT", 15*time.Minute),
 		CookieSecure:       envBool("COOKIE_SECURE", false),
@@ -66,6 +68,9 @@ func Load() (Config, error) {
 	}
 	if cfg.AgentMaxSteps < 1 || cfg.AgentMaxSteps > 100 {
 		return Config{}, errors.New("AGENT_MAX_STEPS must be between 1 and 100")
+	}
+	if cfg.DemoRunLimit < 0 || cfg.DemoRunLimit > 100 {
+		return Config{}, errors.New("DEMO_RUN_LIMIT must be between 0 and 100")
 	}
 	if (cfg.GoogleClientID == "") != (cfg.GoogleClientSecret == "") {
 		return Config{}, errors.New("GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured together")

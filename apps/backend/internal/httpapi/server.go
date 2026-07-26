@@ -61,6 +61,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/auth/config", s.authConfig)
 	s.mux.HandleFunc("GET /api/auth/google", s.googleLogin)
 	s.mux.HandleFunc("GET /api/auth/google/callback", s.googleCallback)
+	s.mux.Handle("GET /api/account/usage", s.auth(http.HandlerFunc(s.accountUsage)))
 	s.mux.Handle("GET /api/projects", s.auth(http.HandlerFunc(s.listProjects)))
 	s.mux.Handle("POST /api/projects", s.auth(http.HandlerFunc(s.createProject)))
 	s.mux.Handle("GET /api/projects/{id}", s.auth(http.HandlerFunc(s.getProject)))
@@ -166,6 +167,15 @@ func (s *Server) listProjects(w http.ResponseWriter, r *http.Request) {
 		projects = []store.Project{}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"message": "Projects fetched successfully", "projects": projects})
+}
+
+func (s *Server) accountUsage(w http.ResponseWriter, r *http.Request) {
+	usage, err := s.store.DemoUsage(r.Context(), userID(r.Context()), s.cfg.DemoRunLimit)
+	if err != nil {
+		s.internalError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"demo": usage})
 }
 
 func (s *Server) createProject(w http.ResponseWriter, r *http.Request) {
@@ -282,33 +292,53 @@ func (s *Server) createSandbox(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	credentials, ok := decodeOptionalCredentials(w, r)
+	if !ok {
+		return
+	}
+	usage, err := s.store.DemoUsage(r.Context(), userID(r.Context()), s.cfg.DemoRunLimit)
+	if err != nil {
+		s.internalError(w, r, err)
+		return
+	}
+	sandbox := s.sandbox
+	if credentials.E2BAPIKey != "" {
+		if err := credentials.validateE2B(); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		sandbox = provider.NewE2B(credentials.E2BAPIKey, s.cfg.E2BTemplateAlias, s.cfg.SandboxTimeout)
+	} else if usage.RequiresKeys {
+		writeError(w, http.StatusPaymentRequired, "your two demo builds are used; add your E2B API key to restart the preview")
+		return
+	}
 	if project.SandboxID != nil {
-		if connected, err := s.sandbox.Connect(r.Context(), *project.SandboxID); err == nil &&
+		if connected, err := sandbox.Connect(r.Context(), *project.SandboxID); err == nil &&
 			connected.EnvdAccessToken != nil {
-			if err := s.prepareSandboxPreview(r.Context(), project.ID, connected.SandboxID, *connected.EnvdAccessToken); err != nil {
+			if err := s.prepareSandboxPreview(r.Context(), sandbox, project.ID, connected.SandboxID, *connected.EnvdAccessToken); err != nil {
 				writeError(w, http.StatusBadGateway, "sandbox preview restart failed")
 				return
 			}
 			writeJSON(w, http.StatusOK, map[string]any{
 				"message": "Sandbox reconnected", "sandboxId": connected.SandboxID,
-				"previewUrl": s.sandbox.PreviewURL(connected.SandboxID),
+				"previewUrl": sandbox.PreviewURL(connected.SandboxID),
 			})
 			return
 		}
 	}
-	created, err := s.sandbox.Create(r.Context(), project.ID.String())
+	created, err := sandbox.Create(r.Context(), project.ID.String())
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "sandbox creation failed: "+err.Error())
 		return
 	}
-	if err := s.prepareSandboxPreview(r.Context(), project.ID, created.SandboxID, *created.EnvdAccessToken); err != nil {
-		_ = s.sandbox.Kill(context.Background(), created.SandboxID)
+	if err := s.prepareSandboxPreview(r.Context(), sandbox, project.ID, created.SandboxID, *created.EnvdAccessToken); err != nil {
+		_ = sandbox.Kill(context.Background(), created.SandboxID)
 		writeError(w, http.StatusBadGateway, "sandbox preview preparation failed")
 		return
 	}
-	preview := s.sandbox.PreviewURL(created.SandboxID)
+	preview := sandbox.PreviewURL(created.SandboxID)
 	if err := s.store.SaveSandbox(r.Context(), project.ID, created.SandboxID, preview); err != nil {
-		_ = s.sandbox.Kill(context.Background(), created.SandboxID)
+		_ = sandbox.Kill(context.Background(), created.SandboxID)
 		s.internalError(w, r, err)
 		return
 	}
@@ -317,18 +347,18 @@ func (s *Server) createSandbox(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *Server) prepareSandboxPreview(ctx context.Context, projectID uuid.UUID, sandboxID, accessToken string) error {
+func (s *Server) prepareSandboxPreview(ctx context.Context, sandbox *provider.E2B, projectID uuid.UUID, sandboxID, accessToken string) error {
 	files, err := s.store.Files(ctx, projectID)
 	if err != nil {
 		return err
 	}
 	for _, file := range files {
 		filePath := "/home/user/react-app/" + strings.TrimPrefix(path.Clean("/"+file.Path), "/")
-		if err := s.sandbox.WriteFile(ctx, sandboxID, accessToken, filePath, []byte(file.Content)); err != nil {
+		if err := sandbox.WriteFile(ctx, sandboxID, accessToken, filePath, []byte(file.Content)); err != nil {
 			return err
 		}
 	}
-	result, err := s.sandbox.Run(ctx, sandboxID, accessToken,
+	result, err := sandbox.Run(ctx, sandboxID, accessToken,
 		"pkill -f 'node .*/node_modules/.bin/[v]ite' >/dev/null 2>&1 || true; "+
 			"nohup npm run dev -- --host 0.0.0.0 --port 5173 --strictPort >/tmp/cutable-vite.log 2>&1 </dev/null & "+
 			"for attempt in $(seq 1 20); do "+
@@ -342,6 +372,19 @@ func (s *Server) prepareSandboxPreview(ctx context.Context, projectID uuid.UUID,
 		return fmt.Errorf("preview process exited with code %d: %s", result.ExitCode, strings.TrimSpace(result.Stderr))
 	}
 	return nil
+}
+
+func decodeOptionalCredentials(w http.ResponseWriter, r *http.Request) (providerCredentials, bool) {
+	if r.Body == nil || r.ContentLength == 0 {
+		return providerCredentials{}, true
+	}
+	var input struct {
+		Credentials providerCredentials `json:"credentials"`
+	}
+	if !decodeJSONLimit(w, r, &input, 8<<10) {
+		return providerCredentials{}, false
+	}
+	return input.Credentials.normalized(), true
 }
 
 func (s *Server) deleteSandbox(w http.ResponseWriter, r *http.Request) {

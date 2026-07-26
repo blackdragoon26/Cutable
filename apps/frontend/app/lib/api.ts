@@ -29,6 +29,18 @@ export interface Project {
   updatedAt: string;
 }
 
+export interface DemoUsage {
+  used: number;
+  limit: number;
+  remaining: number;
+  requiresKeys: boolean;
+}
+
+export interface ProviderCredentials {
+  openRouterApiKey: string;
+  e2bApiKey: string;
+}
+
 export class ApiError extends Error {
   status: number;
 
@@ -104,6 +116,10 @@ export async function getProjects() {
   return apiRequest<ApiResponse<{ projects: any[] }>>(`/api/projects`);
 }
 
+export async function getAccountUsage() {
+  return apiRequest<{ demo: DemoUsage }>(`/api/account/usage`);
+}
+
 export async function getProject(projectId: string) {
   return apiRequest<ApiResponse<{ project: Project }>>(
     `/api/projects/${projectId}`
@@ -123,10 +139,18 @@ export async function getFileContent(projectId: string, filepath: string) {
   );
 }
 
-export async function createSandbox(projectId: string) {
+export async function createSandbox(
+  projectId: string,
+  credentials?: ProviderCredentials | null
+) {
   return apiRequest<ApiResponse<{ sandboxId: string; previewUrl: string }>>(
     `/api/projects/${projectId}/sandbox`,
-    { method: "POST" }
+    {
+      method: "POST",
+      ...(credentials
+        ? { body: JSON.stringify({ credentials }) }
+        : {}),
+    }
   );
 }
 

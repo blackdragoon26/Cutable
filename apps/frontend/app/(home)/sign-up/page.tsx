@@ -42,7 +42,7 @@ export default function SignUpPage() {
             Cutable plans the work, writes the application, verifies its build, and keeps the result inspectable.
           </p>
         </div>
-        <p className="text-sm text-stone-500">Your API keys remain server-side.</p>
+        <p className="text-sm text-stone-500">Two demo builds included. Your own keys are never stored.</p>
       </section>
 
       <section className="flex items-center justify-center px-5 py-12 sm:px-10">

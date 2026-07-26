@@ -27,6 +27,13 @@ type User struct {
 	GoogleSub    string
 }
 
+type DemoUsage struct {
+	Used         int  `json:"used"`
+	Limit        int  `json:"limit"`
+	Remaining    int  `json:"remaining"`
+	RequiresKeys bool `json:"requiresKeys"`
+}
+
 type Project struct {
 	ID            uuid.UUID           `json:"id"`
 	Title         string              `json:"title"`
@@ -145,6 +152,47 @@ func (s *Store) UserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		`SELECT id,name,email,COALESCE(password_hash,''),COALESCE(google_sub,'') FROM users WHERE id=$1`, id).
 		Scan(&user.ID, &user.Name, &user.Email, &user.PasswordHash, &user.GoogleSub)
 	return user, err
+}
+
+func (s *Store) DemoUsage(ctx context.Context, id uuid.UUID, limit int) (DemoUsage, error) {
+	usage := DemoUsage{Limit: limit}
+	err := s.pool.QueryRow(ctx, `
+		SELECT demo_runs_used, GREATEST($2 - demo_runs_used, 0)
+		FROM users
+		WHERE id=$1`, id, limit).
+		Scan(&usage.Used, &usage.Remaining)
+	usage.RequiresKeys = usage.Remaining == 0
+	return usage, err
+}
+
+func (s *Store) ClaimDemoRun(ctx context.Context, id uuid.UUID, limit int) (DemoUsage, bool, error) {
+	if limit <= 0 {
+		usage, err := s.DemoUsage(ctx, id, limit)
+		return usage, false, err
+	}
+	var used int
+	err := s.pool.QueryRow(ctx, `
+		UPDATE users
+		SET demo_runs_used=demo_runs_used+1, updated_at=NOW()
+		WHERE id=$1 AND demo_runs_used < $2
+		RETURNING demo_runs_used`, id, limit).Scan(&used)
+	if errors.Is(err, pgx.ErrNoRows) {
+		usage, usageErr := s.DemoUsage(ctx, id, limit)
+		return usage, false, usageErr
+	}
+	if err != nil {
+		return DemoUsage{}, false, err
+	}
+	usage := DemoUsage{
+		Used:      used,
+		Limit:     limit,
+		Remaining: limit - used,
+	}
+	if usage.Remaining < 0 {
+		usage.Remaining = 0
+	}
+	usage.RequiresKeys = usage.Remaining == 0
+	return usage, true, nil
 }
 
 func (s *Store) UpsertGoogleUser(ctx context.Context, name, email, googleSub string) (User, error) {

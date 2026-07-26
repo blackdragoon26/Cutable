@@ -8,6 +8,7 @@ import {
   createSandbox,
   getSandboxInfo,
 } from "../lib/api";
+import { loadProviderCredentials } from "../lib/provider-credentials";
 
 // Project query
 export function useProject(projectId: string) {
@@ -53,7 +54,7 @@ export function useCreateSandbox(projectId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => createSandbox(projectId),
+    mutationFn: () => createSandbox(projectId, loadProviderCredentials()),
     onSuccess: () => {
       // Invalidate sandbox info to refetch
       queryClient.invalidateQueries({ queryKey: ["sandboxInfo", projectId] });

@@ -6,9 +6,15 @@ import FileExplorer from "@/app/components/FileExplorer";
 import EditorSection from "@/app/components/EditorSection";
 import ChatSection from "@/app/components/ChatSection";
 import ProgressLoader from "@/app/components/ProgressLoader";
+import ProviderKeyDialog from "@/app/components/ProviderKeyDialog";
 import { useCreateSandbox, useProject, useProjectFiles, useSandboxInfo } from "@/app/hooks/useProjectQueries";
 import { useWebSocket } from "@/app/hooks/useWebSocket";
 import { useAgentSession } from "@/app/hooks/useAgentSession";
+import { getAccountUsage, type DemoUsage } from "@/app/lib/api";
+import {
+  loadProviderCredentials,
+  type ProviderCredentials,
+} from "@/app/lib/provider-credentials";
 
 interface ProjectPageProps {
   params: Promise<{ id: string }>;
@@ -25,6 +31,12 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   const editorRef = useRef<{ openFile: (filePath: string) => void } | null>(null);
   const [activeFile, setActiveFile] = useState<string | null>(null);
   const [showChat, setShowChat] = useState(false);
+  const [credentials, setCredentials] = useState<ProviderCredentials | null>(null);
+  const [demoUsage, setDemoUsage] = useState<DemoUsage | null>(null);
+  const [usageReady, setUsageReady] = useState(false);
+  const [showKeyDialog, setShowKeyDialog] = useState(false);
+  const [keyDialogMessage, setKeyDialogMessage] = useState<string | null>(null);
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
 
   const { data: projectData, isLoading: projectLoading } = useProject(id);
   const { data: filesData, isLoading: filesLoading } = useProjectFiles(id);
@@ -45,33 +57,86 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   } = useAgentSession(id);
   const [hasBootstrappedPrompt, setHasBootstrappedPrompt] = useState(false);
 
+  useEffect(() => {
+    setCredentials(loadProviderCredentials());
+    getAccountUsage()
+      .then((response) => setDemoUsage(response.demo))
+      .finally(() => setUsageReady(true));
+  }, []);
+
+  const handleSocketEvent = useCallback(
+    (event: { e: string; [key: string]: any }) => {
+      if (event.e === "credentials_required") {
+        setKeyDialogMessage(
+          event.message ||
+            "Your two demo builds are used. Add your OpenRouter and E2B keys to continue."
+        );
+        if (event.demo) setDemoUsage(event.demo);
+        setShowKeyDialog(true);
+      }
+      if (event.e === "usage_updated" && event.demo) {
+        setDemoUsage(event.demo);
+      }
+      void handleAgentEvent(event);
+    },
+    [handleAgentEvent]
+  );
+
   // WebSocket connection with error handling
   const { isConnected, connectionError, sendMessage } = useWebSocket({
     projectId: id,
-    onMessage: handleAgentEvent,
+    onMessage: handleSocketEvent,
   });
 
   const handleAgentPrompt = useCallback(
-    (prompt: string) => {
+    (prompt: string, activeCredentials: ProviderCredentials | null) => {
       const trimmed = prompt.trim();
       if (!trimmed || !isConnected || !sendMessage) return;
       sendMessage({
         type: "start_agent",
         prompt: trimmed,
+        ...(activeCredentials ? { credentials: activeCredentials } : {}),
       });
     },
     [sendMessage, isConnected]
   );
 
   const handleUserPrompt = useCallback(
-    async (prompt: string) => {
+    async (
+      prompt: string,
+      credentialOverride?: ProviderCredentials | null
+    ) => {
       const trimmed = prompt.trim();
       if (!trimmed || !isConnected) return;
+      const activeCredentials =
+        credentialOverride === undefined ? credentials : credentialOverride;
+      if (demoUsage?.requiresKeys && !activeCredentials) {
+        setPendingPrompt(trimmed);
+        setKeyDialogMessage(
+          "Your two demo builds are complete. Add your OpenRouter and E2B API keys to continue."
+        );
+        setShowKeyDialog(true);
+        return;
+      }
       const persistPromise = sendUserMessage(trimmed);
-      handleAgentPrompt(trimmed);
+      handleAgentPrompt(trimmed, activeCredentials);
       await persistPromise;
     },
-    [sendUserMessage, handleAgentPrompt, isConnected]
+    [credentials, demoUsage?.requiresKeys, sendUserMessage, handleAgentPrompt, isConnected]
+  );
+
+  const handleCredentialsSaved = useCallback(
+    (nextCredentials: ProviderCredentials) => {
+      setCredentials(nextCredentials);
+      setShowKeyDialog(false);
+      setKeyDialogMessage(null);
+      if (pendingPrompt) {
+        const prompt = pendingPrompt;
+        setPendingPrompt(null);
+        void handleUserPrompt(prompt, nextCredentials);
+      }
+    },
+    [handleUserPrompt, pendingPrompt]
   );
 
   useEffect(() => {
@@ -92,6 +157,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
       !hasBootstrappedPrompt &&
       projectReady &&
       isConnected &&
+      usageReady &&
       messagesEmpty &&
       hasNoGeneratedFiles;
 
@@ -107,6 +173,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
     projectLoading,
     project?.initialPrompt,
     isConnected,
+    usageReady,
     messages.length,
     files.length,
     filesLoading,
@@ -162,6 +229,16 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   };
 
   const connectionStatus = getConnectionStatus();
+  const handleRestartPreview = () => {
+    if (demoUsage?.requiresKeys && !credentials) {
+      setKeyDialogMessage(
+        "Add your E2B and OpenRouter keys before restarting this preview."
+      );
+      setShowKeyDialog(true);
+      return;
+    }
+    restartPreview.mutate();
+  };
 
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-white">
@@ -179,6 +256,23 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {demoUsage && (
+            <span className="hidden rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-xs text-stone-600 sm:inline">
+              {demoUsage.remaining > 0
+                ? `${demoUsage.remaining} demo build${demoUsage.remaining === 1 ? "" : "s"} left`
+                : "Own keys required"}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setKeyDialogMessage(null);
+              setShowKeyDialog(true);
+            }}
+            className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50"
+          >
+            API keys
+          </button>
           {previewUrl && (
             <a href={previewUrl} target="_blank" rel="noopener noreferrer" className="rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50">
               Open preview ↗
@@ -186,7 +280,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           )}
           <button
             type="button"
-            onClick={() => restartPreview.mutate()}
+            onClick={handleRestartPreview}
             disabled={restartPreview.isPending}
             className="rounded-md px-3 py-1.5 text-xs font-medium text-stone-500 transition hover:bg-stone-100 hover:text-stone-950 disabled:opacity-50"
           >
@@ -277,6 +371,15 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           )}
         </div>
       </div>
+      <ProviderKeyDialog
+        open={showKeyDialog}
+        message={keyDialogMessage}
+        onClose={() => {
+          setShowKeyDialog(false);
+          setPendingPrompt(null);
+        }}
+        onSaved={handleCredentialsSaved}
+      />
     </main>
   );
 }

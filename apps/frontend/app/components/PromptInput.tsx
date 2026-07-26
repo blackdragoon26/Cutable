@@ -267,7 +267,8 @@ export default function PromptInput() {
       </div>
 
       <p className="mt-3 text-center text-xs text-stone-500">
-        Attach up to three source files, briefs, or reference images.
+        Two demo builds are included with each account. Continue afterward with
+        your own OpenRouter and E2B keys.
       </p>
       {error && (
         <p className="mt-2 text-center text-sm text-red-600" role="alert">

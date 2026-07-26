@@ -243,13 +243,6 @@ export function useWebSocket({
   }, [stopPingInterval]);
 
   const sendMessage = useCallback((message: unknown) => {
-    console.log("[WS Client] sendMessage called:", {
-      messageType: typeof message === "object" && message !== null ? (message as any).type : "unknown",
-      readyState: wsRef.current?.readyState,
-      isOpen: wsRef.current?.readyState === WebSocket.OPEN,
-      hasSocket: !!wsRef.current,
-    });
-
     if (!wsRef.current) {
       console.error("[WS Client] ❌ No WebSocket reference");
       return false;
@@ -258,7 +251,6 @@ export function useWebSocket({
     if (wsRef.current.readyState === WebSocket.OPEN) {
       try {
         const messageStr = JSON.stringify(message);
-        console.log("[WS Client] ✅ Sending message:", messageStr.slice(0, 200));
         wsRef.current.send(messageStr);
         return true;
       } catch (error) {

@@ -17,6 +17,9 @@ func TestLoadRequiresStrongConfiguration(t *testing.T) {
 	if cfg.Port != "3010" || cfg.AgentMaxSteps != 12 {
 		t.Fatalf("unexpected config: %+v", cfg)
 	}
+	if cfg.DemoRunLimit != 2 {
+		t.Fatalf("expected two demo runs, got %d", cfg.DemoRunLimit)
+	}
 	if cfg.GoogleAuthEnabled() {
 		t.Fatal("Google auth unexpectedly enabled")
 	}

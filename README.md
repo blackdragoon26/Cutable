@@ -18,6 +18,7 @@ service.
 - PostgreSQL persistence with embedded SQL migrations
 - OpenRouter chat completions with function/tool calling
 - Secured E2B sandbox lifecycle, filesystem, command, build, and preview support
+- Two account-level demo builds followed by session-only bring-your-own-provider keys
 - Next.js 16, React 19, Tailwind CSS 4, React Query, and Monaco Editor
 - A reproducible `cutable-react-base` E2B template
 - Unit tests, live provider smoke tests, dependency audits, and GitHub Actions CI
@@ -134,6 +135,8 @@ Go API
 
 The API does not persist E2B environment access tokens. It receives a fresh
 short-lived credential whenever it creates or reconnects to a sandbox.
+User-supplied OpenRouter and E2B keys are held in browser `sessionStorage`,
+sent only with build or preview requests, and are not stored by the Go API.
 
 ## Environment variables
 
@@ -142,6 +145,10 @@ required intentionally; there is no hidden fallback model. For HTTPS
 deployments set `COOKIE_SECURE=true`, use an HTTPS `FRONTEND_ORIGIN`, and use a
 `wss://` frontend WebSocket URL. Set `GOOGLE_REDIRECT_URL` to the exact
 production API callback URL registered in Google Cloud.
+
+The backend container reads an optional `/run/secrets/cutable.env` file before
+normal environment variables. The image is published to GHCR for both AMD64
+and ARM64 with immutable commit tags and digests.
 
 ## Repository layout
 

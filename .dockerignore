@@ -1,11 +1,9 @@
 .git
+.github
 .env
-node_modules
+.env.*
+!.env.example
 **/node_modules
-.next
 **/.next
-dist
-build
-coverage
-.turbo
-*.log
+**/coverage
+apps/backend/server

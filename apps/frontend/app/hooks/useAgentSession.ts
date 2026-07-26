@@ -429,6 +429,17 @@ export function useAgentSession(projectId: string) {
         return;
       }
 
+      if (event.e === "credentials_required") {
+        setIsProcessing(false);
+        setIsThinking(false);
+        setStageInfo(null);
+        return;
+      }
+
+      if (event.e === "usage_updated") {
+        return;
+      }
+
       if (event.e === "agent_thinking") {
         setIsThinking(true);
         return;
