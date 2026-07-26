@@ -35,17 +35,17 @@ export default function Brand({ compact = false, className = "" }: BrandProps) {
       className={`group inline-flex items-center font-semibold tracking-tight text-stone-950 ${className}`}
     >
       <span
-        className={`relative mr-2.5 shrink-0 overflow-hidden rounded-lg bg-[#27272a] shadow-[0_0_0_1px_rgba(255,255,255,0.08)] ${
+        className={`relative mr-2.5 shrink-0 ${
           compact ? "h-8 w-8" : "h-9 w-9"
         }`}
         aria-hidden="true"
       >
         <Image
-          src="/brand/cutable-mark.png"
+          src="/brand/cutable-mark-v3.png"
           alt=""
           fill
           sizes={compact ? "32px" : "36px"}
-          className="object-cover"
+          className="object-contain"
           priority
         />
         <video
@@ -54,10 +54,10 @@ export default function Brand({ compact = false, className = "" }: BrandProps) {
           loop
           playsInline
           preload="metadata"
-          poster="/brand/cutable-mark.png"
-          className="absolute inset-0 h-full w-full object-cover opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+          poster="/brand/cutable-mark-v3.png"
+          className="absolute inset-0 h-full w-full object-contain opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
         >
-          <source src="/brand/cutable-hover.mp4" type="video/mp4" />
+          <source src="/brand/cutable-hover.webm" type="video/webm" />
         </video>
       </span>
       <span className={compact ? "text-sm" : "text-[17px]"}>Cutable</span>

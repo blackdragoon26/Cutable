@@ -14,8 +14,8 @@ export default function GoogleAuthButton() {
 
   const next =
     typeof window === "undefined"
-      ? "/"
-      : new URLSearchParams(window.location.search).get("next") || "/";
+      ? "/dashboard"
+      : new URLSearchParams(window.location.search).get("next") || "/dashboard";
 
   return (
     <div className="space-y-2">

@@ -21,7 +21,11 @@ export default function SignUpPage() {
     try {
       await register(email, password, name);
       const requested = new URLSearchParams(window.location.search).get("next");
-      router.push(requested?.startsWith("/") && !requested.startsWith("//") ? requested : "/");
+      router.push(
+        requested?.startsWith("/") && !requested.startsWith("//")
+          ? requested
+          : "/dashboard"
+      );
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to create your account.");
     } finally {

@@ -60,6 +60,9 @@ const EditorSection = forwardRef<EditorSectionRef, EditorSectionProps>(
     };
 
     const [activeViewTab, setActiveViewTab] = useState<"code" | "preview">("code");
+    const [editorTheme, setEditorTheme] = useState<"vs-light" | "vs-dark">(
+      "vs-dark"
+    );
     const [openFiles, setOpenFiles] = useState<OpenFile[]>([
       initialFileWithContent,
     ]);
@@ -69,6 +72,20 @@ const EditorSection = forwardRef<EditorSectionRef, EditorSectionProps>(
     );
     const [previewHtml, setPreviewHtml] = useState("");
     const [hasOpenedPreview, setHasOpenedPreview] = useState(false);
+
+    useEffect(() => {
+      const syncTheme = () => {
+        setEditorTheme(
+          document.documentElement.dataset.theme === "light"
+            ? "vs-light"
+            : "vs-dark"
+        );
+      };
+      syncTheme();
+      window.addEventListener("cutable-theme-change", syncTheme);
+      return () =>
+        window.removeEventListener("cutable-theme-change", syncTheme);
+    }, []);
 
     useEffect(() => {
       if (sandboxPreviewUrl && !hasOpenedPreview) {
@@ -278,7 +295,7 @@ const EditorSection = forwardRef<EditorSectionRef, EditorSectionProps>(
           <MonacoEditor
             height="100%"
             language={getLanguageFromPath(activeFile)}
-            theme="vs-dark"
+            theme={editorTheme}
             value={currentCode}
             onChange={handleEditorChange}
             options={{

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Brand from "./Brand";
 import ConnectProviderKeys from "./ConnectProviderKeys";
+import ThemeToggle from "./ThemeToggle";
 
 export default function Header() {
   return (
@@ -18,9 +19,16 @@ export default function Header() {
           >
             Architecture
           </Link>
+          <Link
+            href="/dashboard"
+            className="text-sm text-stone-600 transition-colors hover:text-stone-950"
+          >
+            Projects
+          </Link>
         </div>
 
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <ConnectProviderKeys />
           <Link
             href="/sign-in"
@@ -30,7 +38,7 @@ export default function Header() {
           </Link>
           <Link
             href="/sign-up"
-            className="rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700"
+            className="hidden rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700 sm:inline-flex"
           >
             Create account
           </Link>

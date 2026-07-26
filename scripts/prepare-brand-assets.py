@@ -15,6 +15,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "assets/brand/cutable-source.png"
 SOURCE_V2 = ROOT / "assets/brand/cutable-v2-source.png"
+SOURCE_V3 = ROOT / "assets/brand/cutable-v3-transparent.png"
 PUBLIC = ROOT / "apps/frontend/public/brand"
 APP = ROOT / "apps/frontend/app"
 
@@ -64,7 +65,12 @@ def contained_canvas(mark: Image.Image, size: int, padding: int) -> Image.Image:
         raise RuntimeError("supplied logo has no visible pixels")
     cropped = mark.crop(bounds)
     available = size - 2 * padding
-    cropped.thumbnail((available, available), Image.Resampling.LANCZOS)
+    scale = min(available / cropped.width, available / cropped.height)
+    dimensions = (
+        max(1, round(cropped.width * scale)),
+        max(1, round(cropped.height * scale)),
+    )
+    cropped = cropped.resize(dimensions, Image.Resampling.LANCZOS)
     canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     canvas.alpha_composite(cropped, ((size - cropped.width) // 2, (size - cropped.height) // 2))
     return canvas
@@ -79,12 +85,16 @@ def enlarge_v2_mark(mark: Image.Image) -> Image.Image:
 
 def main() -> None:
     PUBLIC.mkdir(parents=True, exist_ok=True)
-    if SOURCE_V2.exists():
+    if SOURCE_V3.exists():
+        mark = Image.open(SOURCE_V3).convert("RGBA")
+    elif SOURCE_V2.exists():
         mark = enlarge_v2_mark(Image.open(SOURCE_V2).convert("RGBA"))
     else:
         mark = remove_edge_background(Image.open(SOURCE))
 
-    mark.save(PUBLIC / "cutable-mark.png", optimize=True)
+    public_mark = contained_canvas(mark, 512, 8)
+    public_mark.save(PUBLIC / "cutable-mark.png", optimize=True)
+    public_mark.save(PUBLIC / "cutable-mark-v3.png", optimize=True)
     contained_canvas(mark, 512, 8).save(APP / "icon.png", optimize=True)
     contained_canvas(mark, 180, 4).save(APP / "apple-icon.png", optimize=True)
     contained_canvas(mark, 256, 4).save(

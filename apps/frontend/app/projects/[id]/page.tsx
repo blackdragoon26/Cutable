@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useState, useRef, useEffect, useCallback } from "react";
+import Link from "next/link";
 import ProjectInfo from "@/app/components/ProjectInfo";
 import FileExplorer from "@/app/components/FileExplorer";
 import EditorSection from "@/app/components/EditorSection";
@@ -8,6 +9,7 @@ import ChatSection from "@/app/components/ChatSection";
 import ProgressLoader from "@/app/components/ProgressLoader";
 import ProviderKeyDialog from "@/app/components/ProviderKeyDialog";
 import Brand from "@/app/components/Brand";
+import ThemeToggle from "@/app/components/ThemeToggle";
 import { useCreateSandbox, useProject, useProjectFiles, useSandboxInfo } from "@/app/hooks/useProjectQueries";
 import { useWebSocket } from "@/app/hooks/useWebSocket";
 import { useAgentSession } from "@/app/hooks/useAgentSession";
@@ -257,6 +259,13 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard"
+            className="hidden rounded-md px-3 py-1.5 text-xs font-medium text-stone-500 transition hover:bg-stone-100 hover:text-stone-950 sm:inline-flex"
+          >
+            All projects
+          </Link>
+          <ThemeToggle />
           {demoUsage && (
             <span className="hidden rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-xs text-stone-600 sm:inline">
               {demoUsage.remaining > 0

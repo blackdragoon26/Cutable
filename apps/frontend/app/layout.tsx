@@ -18,7 +18,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      data-theme="dark"
+      data-theme-setting="default"
+      suppressHydrationWarning
+    >
       <body className="antialiased">
         <QueryProvider>{children}</QueryProvider>
       </body>

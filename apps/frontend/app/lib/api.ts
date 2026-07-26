@@ -96,8 +96,9 @@ export async function getAuthConfig() {
   return apiRequest<{ google: { enabled: boolean } }>(`/api/auth/config`);
 }
 
-export function googleAuthURL(next = "/") {
-  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/";
+export function googleAuthURL(next = "/dashboard") {
+  const safeNext =
+    next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
   return `${API_BASE_URL}/api/auth/google?next=${encodeURIComponent(safeNext)}`;
 }
 
@@ -113,7 +114,7 @@ export async function createProject(
 }
 
 export async function getProjects() {
-  return apiRequest<ApiResponse<{ projects: any[] }>>(`/api/projects`);
+  return apiRequest<ApiResponse<{ projects: Project[] }>>(`/api/projects`);
 }
 
 export async function getAccountUsage() {
