@@ -48,3 +48,18 @@ jobs:
       - name: Record immutable digest
         run: |
           echo "Image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/cutable-api@${{ steps.image.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Deploy verified image through Myprod
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/cutable-api@${{ steps.image.outputs.digest }}
+          MYPROD_DEPLOY_TOKEN: ${{ secrets.MYPROD_CUTABLE_DEPLOY_TOKEN }}
+        run: |
+          test -n "$MYPROD_DEPLOY_TOKEN"
+          jq -n --arg image "$IMAGE" '{image: $image}' |
+            curl --fail-with-body --silent --show-error \
+              --retry 3 --retry-all-errors \
+              --connect-timeout 10 --max-time 180 \
+              -H "Authorization: Bearer $MYPROD_DEPLOY_TOKEN" \
+              -H "Content-Type: application/json" \
+              --data-binary @- \
+              https://api.sankalpjha.dev/__poolctl/api/deploy/cutable
