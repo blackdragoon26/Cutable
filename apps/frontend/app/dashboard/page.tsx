@@ -8,29 +8,56 @@ import Brand from "@/app/components/Brand";
 import ThemeToggle from "@/app/components/ThemeToggle";
 import {
   ApiError,
+  getCurrentUser,
   getProjects,
   type Project,
 } from "@/app/lib/api";
 
 export default function DashboardPage() {
   const router = useRouter();
+  const userQuery = useQuery({
+    queryKey: ["currentUser"],
+    queryFn: getCurrentUser,
+    retry: false,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
   const projectsQuery = useQuery({
     queryKey: ["projects"],
     queryFn: getProjects,
+    enabled: userQuery.isSuccess,
     retry: (count, error) =>
       !(error instanceof ApiError && error.status === 401) && count < 2,
   });
 
   useEffect(() => {
-    if (
+    const authError =
+      userQuery.error instanceof ApiError && userQuery.error.status === 401;
+    const projectAuthError =
       projectsQuery.error instanceof ApiError &&
-      projectsQuery.error.status === 401
-    ) {
+      projectsQuery.error.status === 401;
+    if (authError || projectAuthError) {
       router.replace("/sign-in?next=/dashboard");
     }
-  }, [projectsQuery.error, router]);
+  }, [projectsQuery.error, router, userQuery.error]);
+
+  if (
+    userQuery.isPending ||
+    (userQuery.error instanceof ApiError && userQuery.error.status === 401)
+  ) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#f6f6f3] text-stone-950">
+        <div className="text-center" role="status">
+          <span className="mx-auto block h-2 w-2 animate-pulse rounded-full bg-[#e6538b]" />
+          <p className="mt-4 text-sm text-stone-500">Checking your session…</p>
+        </div>
+      </main>
+    );
+  }
 
   const projects = projectsQuery.data?.projects ?? [];
+  const user = userQuery.data?.user;
   const newestUpdate = projects.reduce<string | null>(
     (latest, project) =>
       !latest || project.updatedAt > latest ? project.updatedAt : latest,
@@ -58,7 +85,7 @@ export default function DashboardPage() {
         <div className="grid gap-8 border-b border-stone-200 pb-12 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
             <p className="font-mono text-xs uppercase tracking-[0.18em] text-[#a74b73]">
-              Project library
+              {user ? `Hi, ${displayName(user.name, user.email)}` : "Project library"}
             </p>
             <h1 className="mt-4 text-4xl font-semibold tracking-[-0.045em] sm:text-6xl">
               Pick up where you left off.
@@ -184,4 +211,9 @@ function formatDate(value: string) {
     month: "short",
     year: "numeric",
   }).format(new Date(value));
+}
+
+function displayName(name: string, email: string) {
+  const firstName = name.trim().split(/\s+/)[0];
+  return firstName || email.split("@")[0];
 }

@@ -41,6 +41,12 @@ export interface ProviderCredentials {
   e2bApiKey: string;
 }
 
+export interface CurrentUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
 export class ApiError extends Error {
   status: number;
 
@@ -94,6 +100,16 @@ export async function login(email: string, password: string) {
 
 export async function getAuthConfig() {
   return apiRequest<{ google: { enabled: boolean } }>(`/api/auth/config`);
+}
+
+export async function getCurrentUser() {
+  return apiRequest<{ user: CurrentUser }>(`/api/auth/me`);
+}
+
+export async function logout() {
+  return apiRequest<ApiResponse<{}>>(`/api/auth/logout`, {
+    method: "POST",
+  });
 }
 
 export function googleAuthURL(next = "/dashboard") {

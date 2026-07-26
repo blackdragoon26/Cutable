@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 type BrandProps = {
   compact?: boolean;
@@ -11,6 +11,7 @@ type BrandProps = {
 
 export default function Brand({ compact = false, className = "" }: BrandProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [isVideoVisible, setIsVideoVisible] = useState(false);
 
   const playLogo = () => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -20,6 +21,7 @@ export default function Brand({ compact = false, className = "" }: BrandProps) {
   const resetLogo = () => {
     const video = videoRef.current;
     if (!video) return;
+    setIsVideoVisible(false);
     video.pause();
     video.currentTime = 0;
   };
@@ -45,7 +47,9 @@ export default function Brand({ compact = false, className = "" }: BrandProps) {
           alt=""
           fill
           sizes={compact ? "32px" : "36px"}
-          className="object-contain"
+          className={`object-contain transition-opacity duration-100 ${
+            isVideoVisible ? "opacity-0" : "opacity-100"
+          }`}
           priority
         />
         <video
@@ -53,9 +57,12 @@ export default function Brand({ compact = false, className = "" }: BrandProps) {
           muted
           loop
           playsInline
-          preload="metadata"
-          poster="/brand/cutable-mark-v3.png"
-          className="absolute inset-0 h-full w-full object-contain opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+          preload="auto"
+          onPlaying={() => setIsVideoVisible(true)}
+          onError={() => setIsVideoVisible(false)}
+          className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-100 ${
+            isVideoVisible ? "opacity-100" : "opacity-0"
+          }`}
         >
           <source src="/brand/cutable-hover.webm" type="video/webm" />
         </video>

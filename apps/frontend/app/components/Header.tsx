@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Brand from "./Brand";
+import AuthNav from "./AuthNav";
 import ConnectProviderKeys from "./ConnectProviderKeys";
 import ThemeToggle from "./ThemeToggle";
 
@@ -19,29 +20,12 @@ export default function Header() {
           >
             Architecture
           </Link>
-          <Link
-            href="/dashboard"
-            className="text-sm text-stone-600 transition-colors hover:text-stone-950"
-          >
-            Projects
-          </Link>
         </div>
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <ConnectProviderKeys />
-          <Link
-            href="/sign-in"
-            className="hidden rounded-md px-3 py-2 text-sm text-stone-600 transition-colors hover:bg-white/70 hover:text-stone-950 sm:inline-flex"
-          >
-            Sign in
-          </Link>
-          <Link
-            href="/sign-up"
-            className="hidden rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700 sm:inline-flex"
-          >
-            Create account
-          </Link>
+          <AuthNav />
         </div>
       </nav>
     </header>

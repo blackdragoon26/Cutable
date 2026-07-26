@@ -61,6 +61,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/auth/config", s.authConfig)
 	s.mux.HandleFunc("GET /api/auth/google", s.googleLogin)
 	s.mux.HandleFunc("GET /api/auth/google/callback", s.googleCallback)
+	s.mux.Handle("GET /api/auth/me", s.auth(http.HandlerFunc(s.currentUser)))
 	s.mux.Handle("GET /api/account/usage", s.auth(http.HandlerFunc(s.accountUsage)))
 	s.mux.Handle("GET /api/projects", s.auth(http.HandlerFunc(s.listProjects)))
 	s.mux.Handle("POST /api/projects", s.auth(http.HandlerFunc(s.createProject)))
@@ -155,6 +156,21 @@ func (s *Server) logout(w http.ResponseWriter, _ *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 	writeJSON(w, http.StatusOK, map[string]any{"message": "Logged out"})
+}
+
+func (s *Server) currentUser(w http.ResponseWriter, r *http.Request) {
+	user, err := s.store.UserByID(r.Context(), userID(r.Context()))
+	if err != nil {
+		s.internalError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"user": map[string]any{
+			"id":    user.ID,
+			"name":  user.Name,
+			"email": user.Email,
+		},
+	})
 }
 
 func (s *Server) listProjects(w http.ResponseWriter, r *http.Request) {
