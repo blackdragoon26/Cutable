@@ -10,16 +10,29 @@ export default function Header() {
       <nav className="mx-auto flex max-w-7xl items-center justify-between">
         <Brand />
 
-        <div className="hidden items-center gap-6 md:flex">
-          <span className="text-sm text-stone-500">
-            AI workspace for React applications
-          </span>
+        <div className="hidden items-center gap-5 md:flex">
           <Link
             href="/docs"
             className="text-sm text-stone-600 transition-colors hover:text-stone-950"
           >
             Architecture
           </Link>
+          <a
+            href="https://github.com/blackdragoon26/Cutable"
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm text-stone-600 transition-colors hover:text-stone-950"
+          >
+            GitHub ↗
+          </a>
+          <a
+            href="https://sankalpjha.dev/"
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm text-stone-600 transition-colors hover:text-stone-950"
+          >
+            By Sankalp ↗
+          </a>
         </div>
 
         <div className="flex items-center gap-2">
