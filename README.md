@@ -10,6 +10,10 @@ Likeable project. The UI was retained and modernized; the former
 Node/Express/Prisma/LangGraph backend was replaced with a dependency-light Go
 service.
 
+## Screenshot
+<img width="2934" height="1778" alt="image" src="https://github.com/user-attachments/assets/fce715ef-32e6-4400-8507-f73202908402" />
+
+
 ## What is included
 
 - Go 1.26 HTTP and WebSocket API
