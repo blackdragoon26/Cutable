@@ -64,6 +64,54 @@ func TestGoogleLoginUsesStateAndPKCE(t *testing.T) {
 	}
 }
 
+func TestGoogleLoginSetsPlatformCookieForMobile(t *testing.T) {
+	server := &Server{
+		cfg: config.Config{
+			GoogleClientID: "client-id", GoogleClientSecret: "client-secret",
+			GoogleRedirectURL: "http://localhost:3010/api/auth/google/callback",
+		},
+		google: defaultGoogleOAuthProvider(),
+	}
+	request := httptest.NewRequest(http.MethodGet, "/api/auth/google?platform=mobile", nil)
+	recorder := httptest.NewRecorder()
+
+	server.googleLogin(recorder, request)
+
+	cookies := recorder.Result().Cookies()
+	if len(cookies) != 4 {
+		t.Fatalf("cookie count = %d, want 4 (state, verifier, next, platform)", len(cookies))
+	}
+	found := false
+	for _, cookie := range cookies {
+		if cookie.Name == googlePlatformCookie && cookie.Value == "mobile" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("expected mobile platform cookie to be set")
+	}
+}
+
+func TestRedirectGoogleErrorMobileUsesCustomScheme(t *testing.T) {
+	server := &Server{cfg: config.Config{FrontendOrigin: "https://cutable.example"}}
+	request := httptest.NewRequest(http.MethodGet, "/api/auth/google/callback", nil)
+	recorder := httptest.NewRecorder()
+
+	server.redirectGoogleError(recorder, request, true, "Google sign-in was cancelled")
+
+	location := recorder.Header().Get("Location")
+	if !strings.HasPrefix(location, mobileAuthCallbackURL+"?error=") {
+		t.Fatalf("mobile error redirect = %q, want prefix %q", location, mobileAuthCallbackURL+"?error=")
+	}
+
+	webRecorder := httptest.NewRecorder()
+	server.redirectGoogleError(webRecorder, request, false, "Google sign-in was cancelled")
+	webLocation := webRecorder.Header().Get("Location")
+	if !strings.HasPrefix(webLocation, "https://cutable.example/sign-in?error=") {
+		t.Fatalf("web error redirect = %q", webLocation)
+	}
+}
+
 func TestGoogleLoginRequiresConfiguration(t *testing.T) {
 	server := &Server{cfg: config.Config{}, google: defaultGoogleOAuthProvider()}
 	request := httptest.NewRequest(http.MethodGet, "/api/auth/google", nil)

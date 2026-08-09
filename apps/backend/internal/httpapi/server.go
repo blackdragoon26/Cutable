@@ -118,11 +118,12 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, err)
 		return
 	}
-	if err := s.setAuthCookie(w, user.ID); err != nil {
+	token, err := s.issueAuthToken(w, user.ID)
+	if err != nil {
 		s.internalError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]any{"message": "User created successfully"})
+	writeJSON(w, http.StatusCreated, map[string]any{"message": "User created successfully", "token": token})
 }
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
@@ -138,11 +139,12 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
-	if err := s.setAuthCookie(w, user.ID); err != nil {
+	token, err := s.issueAuthToken(w, user.ID)
+	if err != nil {
 		s.internalError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"message": "Login successful"})
+	writeJSON(w, http.StatusOK, map[string]any{"message": "Login successful", "token": token})
 }
 
 func (s *Server) logout(w http.ResponseWriter, _ *http.Request) {
@@ -439,46 +441,78 @@ func (s *Server) ownedProject(w http.ResponseWriter, r *http.Request) (store.Pro
 	return project, true
 }
 
+// bearerToken extracts a token from the Authorization header, and for
+// WebSocket upgrade requests only, also accepts a ?token= query param as a
+// fallback for native clients that cannot reliably set arbitrary headers on
+// the upgrade request.
+func bearerToken(r *http.Request) string {
+	if header := r.Header.Get("Authorization"); header != "" {
+		if value, ok := strings.CutPrefix(header, "Bearer "); ok && value != "" {
+			return value
+		}
+	}
+	if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+		if value := r.URL.Query().Get("token"); value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
 func (s *Server) auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tokenString := ""
-		if cookie, err := r.Cookie("token"); err == nil {
-			tokenString = cookie.Value
+		tokenString := bearerToken(r)
+		if tokenString == "" {
+			if cookie, err := r.Cookie("token"); err == nil {
+				tokenString = cookie.Value
+			}
 		}
 		if tokenString == "" {
 			writeError(w, http.StatusUnauthorized, "authentication required")
 			return
 		}
-		claims := jwt.MapClaims{}
-		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
-			if token.Method.Alg() != jwt.SigningMethodHS256.Alg() {
-				return nil, fmt.Errorf("unexpected signing method")
-			}
-			return []byte(s.cfg.JWTSecret), nil
-		}, jwt.WithExpirationRequired(), jwt.WithIssuedAt())
-		if err != nil || !token.Valid {
+		id, err := s.verifyJWT(r.Context(), tokenString)
+		if err != nil {
 			writeError(w, http.StatusUnauthorized, "invalid or expired authentication")
-			return
-		}
-		subject, err := claims.GetSubject()
-		if err != nil {
-			writeError(w, http.StatusUnauthorized, "invalid authentication")
-			return
-		}
-		id, err := uuid.Parse(subject)
-		if err != nil {
-			writeError(w, http.StatusUnauthorized, "invalid authentication")
-			return
-		}
-		if _, err := s.store.UserByID(r.Context(), id); err != nil {
-			writeError(w, http.StatusUnauthorized, "invalid authentication")
 			return
 		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userIDKey, id)))
 	})
 }
 
-func (s *Server) setAuthCookie(w http.ResponseWriter, id uuid.UUID) error {
+// verifyJWT parses and validates a signed auth token and confirms the
+// referenced user still exists. Shared by the cookie/Bearer HTTP middleware
+// and the WebSocket upgrade path.
+func (s *Server) verifyJWT(ctx context.Context, tokenString string) (uuid.UUID, error) {
+	claims := jwt.MapClaims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
+		if token.Method.Alg() != jwt.SigningMethodHS256.Alg() {
+			return nil, fmt.Errorf("unexpected signing method")
+		}
+		return []byte(s.cfg.JWTSecret), nil
+	}, jwt.WithExpirationRequired(), jwt.WithIssuedAt())
+	if err != nil || !token.Valid {
+		return uuid.UUID{}, fmt.Errorf("invalid or expired token")
+	}
+	subject, err := claims.GetSubject()
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+	id, err := uuid.Parse(subject)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+	if _, err := s.store.UserByID(ctx, id); err != nil {
+		return uuid.UUID{}, err
+	}
+	return id, nil
+}
+
+// issueAuthToken signs a fresh JWT for the given user, sets it as the
+// HttpOnly web session cookie, and returns the raw token string so mobile
+// clients can store and send it as a Bearer header instead of relying on
+// cookies.
+func (s *Server) issueAuthToken(w http.ResponseWriter, id uuid.UUID) (string, error) {
 	now := time.Now()
 	claims := jwt.RegisteredClaims{
 		Subject:   id.String(),
@@ -487,7 +521,7 @@ func (s *Server) setAuthCookie(w http.ResponseWriter, id uuid.UUID) error {
 	}
 	value, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(s.cfg.JWTSecret))
 	if err != nil {
-		return err
+		return "", err
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     "token",
@@ -498,7 +532,7 @@ func (s *Server) setAuthCookie(w http.ResponseWriter, id uuid.UUID) error {
 		Secure:   s.cfg.CookieSecure,
 		SameSite: authCookieSameSite(s.cfg.CookieSecure),
 	})
-	return nil
+	return value, nil
 }
 
 func authCookieSameSite(secure bool) http.SameSite {

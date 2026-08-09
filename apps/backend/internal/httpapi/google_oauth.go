@@ -20,6 +20,13 @@ const (
 	googleStateCookie    = "cutable_google_state"
 	googleVerifierCookie = "cutable_google_verifier"
 	googleNextCookie     = "cutable_google_next"
+	googlePlatformCookie = "cutable_google_platform"
+
+	// mobileAuthCallbackURL is the custom URL scheme the Flutter app
+	// registers to receive the OAuth handoff. Not registered with Google as
+	// a redirect_uri itself; Google only ever redirects to the backend's
+	// HTTPS callback, which then issues this app-scheme redirect.
+	mobileAuthCallbackURL = "cutable://auth-callback"
 )
 
 type googleOAuthProvider struct {
@@ -70,6 +77,9 @@ func (s *Server) googleLogin(w http.ResponseWriter, r *http.Request) {
 	s.setOAuthCookie(w, googleStateCookie, state, 600)
 	s.setOAuthCookie(w, googleVerifierCookie, verifier, 600)
 	s.setOAuthCookie(w, googleNextCookie, base64.RawURLEncoding.EncodeToString([]byte(next)), 600)
+	if r.URL.Query().Get("platform") == "mobile" {
+		s.setOAuthCookie(w, googlePlatformCookie, "mobile", 600)
+	}
 
 	challenge := sha256.Sum256([]byte(verifier))
 	query := url.Values{
@@ -85,8 +95,12 @@ func (s *Server) googleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) googleCallback(w http.ResponseWriter, r *http.Request) {
+	isMobile := false
+	if platformCookie, err := r.Cookie(googlePlatformCookie); err == nil && platformCookie.Value == "mobile" {
+		isMobile = true
+	}
 	if !s.cfg.GoogleAuthEnabled() {
-		s.redirectGoogleError(w, r, "Google sign-in is not configured")
+		s.redirectGoogleError(w, r, isMobile, "Google sign-in is not configured")
 		return
 	}
 	stateCookie, stateErr := r.Cookie(googleStateCookie)
@@ -95,7 +109,7 @@ func (s *Server) googleCallback(w http.ResponseWriter, r *http.Request) {
 	if stateErr != nil || verifierErr != nil || state == "" ||
 		subtle.ConstantTimeCompare([]byte(state), []byte(stateCookie.Value)) != 1 {
 		s.clearOAuthCookies(w)
-		s.redirectGoogleError(w, r, "Google sign-in session expired")
+		s.redirectGoogleError(w, r, isMobile, "Google sign-in session expired")
 		return
 	}
 	next := "/"
@@ -106,29 +120,29 @@ func (s *Server) googleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	s.clearOAuthCookies(w)
 	if providerError := strings.TrimSpace(r.URL.Query().Get("error")); providerError != "" {
-		s.redirectGoogleError(w, r, "Google sign-in was cancelled")
+		s.redirectGoogleError(w, r, isMobile, "Google sign-in was cancelled")
 		return
 	}
 	code := strings.TrimSpace(r.URL.Query().Get("code"))
 	if code == "" {
-		s.redirectGoogleError(w, r, "Google did not return an authorization code")
+		s.redirectGoogleError(w, r, isMobile, "Google did not return an authorization code")
 		return
 	}
 
 	accessToken, err := s.exchangeGoogleCode(r.Context(), code, verifierCookie.Value)
 	if err != nil {
 		s.logger.Warn("Google token exchange failed", "error", err)
-		s.redirectGoogleError(w, r, "Google sign-in could not be completed")
+		s.redirectGoogleError(w, r, isMobile, "Google sign-in could not be completed")
 		return
 	}
 	identity, err := s.fetchGoogleUser(r.Context(), accessToken)
 	if err != nil {
 		s.logger.Warn("Google user lookup failed", "error", err)
-		s.redirectGoogleError(w, r, "Google profile could not be verified")
+		s.redirectGoogleError(w, r, isMobile, "Google profile could not be verified")
 		return
 	}
 	if !identity.EmailVerified || identity.Subject == "" || identity.Email == "" {
-		s.redirectGoogleError(w, r, "Google account email is not verified")
+		s.redirectGoogleError(w, r, isMobile, "Google account email is not verified")
 		return
 	}
 	user, err := s.store.UpsertGoogleUser(r.Context(), identity.Name, identity.Email, identity.Subject)
@@ -136,8 +150,13 @@ func (s *Server) googleCallback(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, err)
 		return
 	}
-	if err := s.setAuthCookie(w, user.ID); err != nil {
+	token, err := s.issueAuthToken(w, user.ID)
+	if err != nil {
 		s.internalError(w, r, err)
+		return
+	}
+	if isMobile {
+		http.Redirect(w, r, mobileAuthCallbackURL+"?token="+url.QueryEscape(token), http.StatusFound)
 		return
 	}
 	http.Redirect(w, r, strings.TrimRight(s.cfg.FrontendOrigin, "/")+next, http.StatusFound)
@@ -211,12 +230,16 @@ func (s *Server) setOAuthCookie(w http.ResponseWriter, name, value string, maxAg
 }
 
 func (s *Server) clearOAuthCookies(w http.ResponseWriter) {
-	for _, name := range []string{googleStateCookie, googleVerifierCookie, googleNextCookie} {
+	for _, name := range []string{googleStateCookie, googleVerifierCookie, googleNextCookie, googlePlatformCookie} {
 		s.setOAuthCookie(w, name, "", -1)
 	}
 }
 
-func (s *Server) redirectGoogleError(w http.ResponseWriter, r *http.Request, message string) {
+func (s *Server) redirectGoogleError(w http.ResponseWriter, r *http.Request, isMobile bool, message string) {
+	if isMobile {
+		http.Redirect(w, r, mobileAuthCallbackURL+"?error="+url.QueryEscape(message), http.StatusFound)
+		return
+	}
 	destination := strings.TrimRight(s.cfg.FrontendOrigin, "/") + "/sign-in?error=" + url.QueryEscape(message)
 	http.Redirect(w, r, destination, http.StatusFound)
 }

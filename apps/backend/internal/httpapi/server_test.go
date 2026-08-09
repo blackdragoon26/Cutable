@@ -7,6 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
+
 	"github.com/blackdragoon26/cutable/apps/backend/internal/config"
 	"github.com/blackdragoon26/cutable/apps/backend/internal/store"
 )
@@ -98,5 +101,66 @@ func TestAuthCookieSameSite(t *testing.T) {
 	}
 	if got := authCookieSameSite(true); got != http.SameSiteNoneMode {
 		t.Fatalf("secure SameSite = %v", got)
+	}
+}
+
+func TestBearerTokenPrefersHeaderThenWebSocketQueryFallback(t *testing.T) {
+	rest := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
+	rest.Header.Set("Authorization", "Bearer header-token")
+	if got := bearerToken(rest); got != "header-token" {
+		t.Fatalf("bearerToken(header) = %q", got)
+	}
+
+	noHeaderQuery := httptest.NewRequest(http.MethodGet, "/api/auth/me?token=query-token", nil)
+	if got := bearerToken(noHeaderQuery); got != "" {
+		t.Fatalf("bearerToken(REST query fallback) = %q, want empty (query fallback only applies to websocket upgrades)", got)
+	}
+
+	wsUpgrade := httptest.NewRequest(http.MethodGet, "/ws?projectId=1&token=ws-query-token", nil)
+	wsUpgrade.Header.Set("Upgrade", "websocket")
+	if got := bearerToken(wsUpgrade); got != "ws-query-token" {
+		t.Fatalf("bearerToken(ws query fallback) = %q", got)
+	}
+
+	wsUpgradeWithHeader := httptest.NewRequest(http.MethodGet, "/ws?projectId=1&token=ws-query-token", nil)
+	wsUpgradeWithHeader.Header.Set("Upgrade", "websocket")
+	wsUpgradeWithHeader.Header.Set("Authorization", "Bearer ws-header-token")
+	if got := bearerToken(wsUpgradeWithHeader); got != "ws-header-token" {
+		t.Fatalf("bearerToken(ws header priority) = %q, want header to win over query", got)
+	}
+
+	empty := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
+	if got := bearerToken(empty); got != "" {
+		t.Fatalf("bearerToken(none) = %q, want empty", got)
+	}
+}
+
+func TestIssueAuthTokenSetsCookieAndReturnsVerifiableJWT(t *testing.T) {
+	userID := uuid.New()
+	server := &Server{cfg: config.Config{JWTSecret: strings.Repeat("s", 32), CookieSecure: false}}
+	recorder := httptest.NewRecorder()
+
+	token, err := server.issueAuthToken(recorder, userID)
+	if err != nil {
+		t.Fatalf("issueAuthToken() error = %v", err)
+	}
+	if token == "" {
+		t.Fatal("issueAuthToken() returned empty token")
+	}
+
+	cookies := recorder.Result().Cookies()
+	if len(cookies) != 1 || cookies[0].Name != "token" || cookies[0].Value != token {
+		t.Fatalf("cookie = %#v, want single token cookie matching returned token", cookies)
+	}
+
+	claims := jwt.MapClaims{}
+	parsed, err := jwt.ParseWithClaims(token, claims, func(*jwt.Token) (any, error) {
+		return []byte(server.cfg.JWTSecret), nil
+	})
+	if err != nil || !parsed.Valid {
+		t.Fatalf("token did not parse as a valid JWT: %v", err)
+	}
+	if subject, _ := claims.GetSubject(); subject != userID.String() {
+		t.Fatalf("token subject = %q, want %q", subject, userID.String())
 	}
 }
