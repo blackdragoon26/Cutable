@@ -49,7 +49,7 @@ class WsClient {
     final token = await _secureStorage.readAuthToken();
     final uri = Uri.parse('${AppConfig.wsBaseUrl}/ws').replace(queryParameters: {
       'projectId': projectId,
-      if (token != null) 'token': token,
+      'token': ?token,
     });
     try {
       // IOWebSocketChannel lets us set headers on the upgrade request on
@@ -121,8 +121,8 @@ class WsClient {
       'prompt': prompt,
       if (openRouterApiKey != null || e2bApiKey != null)
         'credentials': {
-          if (openRouterApiKey != null) 'openRouterApiKey': openRouterApiKey,
-          if (e2bApiKey != null) 'e2bApiKey': e2bApiKey,
+          'openRouterApiKey': ?openRouterApiKey,
+          'e2bApiKey': ?e2bApiKey,
         },
     });
   }
