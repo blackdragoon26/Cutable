@@ -1,6 +1,7 @@
 import HeroBanner from "./HeroBanner";
 import PromptInput from "./PromptInput";
 import ConnectProviderKeys from "./ConnectProviderKeys";
+import MobileDownloadButtons from "./MobileDownloadButtons";
 
 export default function HeroSection() {
   return (
@@ -26,6 +27,8 @@ export default function HeroSection() {
             Session-only storage. Your demo runs stay untouched.
           </span>
         </div>
+
+        <MobileDownloadButtons />
       </div>
     </section>
   );
