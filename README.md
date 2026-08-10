@@ -17,13 +17,17 @@ service.
 ## What is included
 
 - Go 1.26 HTTP and WebSocket API
-- JWT authentication in secure, HttpOnly cookies
-- Optional Google OAuth 2.0 sign-in with state validation and PKCE
+- JWT authentication in secure, HttpOnly cookies, plus Bearer-token auth for
+  native clients
+- Optional Google OAuth 2.0 sign-in with state validation and PKCE, including
+  a mobile custom-URL-scheme handoff
 - PostgreSQL persistence with embedded SQL migrations
 - OpenRouter chat completions with function/tool calling
 - Secured E2B sandbox lifecycle, filesystem, command, build, and preview support
 - Two account-level demo builds followed by session-only bring-your-own-provider keys
 - Next.js 16, React 19, Tailwind CSS 4, React Query, and Monaco Editor
+- A Flutter mobile app (iOS + Android) with the same auth/build/preview flow
+  — see [apps/mobile](apps/mobile/README.md)
 - A reproducible `cutable-react-base` E2B template
 - Unit tests, live provider smoke tests, dependency audits, and GitHub Actions CI
 
@@ -163,6 +167,7 @@ apps/
     e2b/                 E2B template definition and build scripts
     migrations/          readable SQL migration copies
   frontend/              Next.js application
+  mobile/                Flutter application (iOS + Android)
 compose.yaml             local PostgreSQL
 ```
 

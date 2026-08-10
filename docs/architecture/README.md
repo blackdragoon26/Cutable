@@ -28,6 +28,11 @@ The API coordinates three external systems:
 Generated application code never executes in the Vercel frontend or the Go
 container.
 
+A Flutter client (`apps/mobile`) is a second, native front end talking to the
+same Go API — see [05 — Mobile client](#05--mobile-client) below. The
+diagram above predates it and still shows only the browser path; the API,
+Neon, OpenRouter, and E2B relationships it depicts are unchanged for mobile.
+
 ## 02 — One user build
 
 ![User build flow](diagrams/user-build-flow.png)
@@ -113,6 +118,49 @@ The backend image is a statically linked Go binary copied into Distroless and
 runs as `nonroot`. CI publishes AMD64 and ARM64 images with a commit tag and an
 immutable digest.
 
+## 05 — Mobile client
+
+`apps/mobile` is a Flutter app for iOS and Android with the same auth,
+project, and AI-build-streaming capabilities as the web app, talking to the
+identical Go API and WebSocket endpoint. It does not have its own diagram
+yet; the system context, build-flow, and execution-loop views above apply
+unchanged once "browser" is read as "client."
+
+What differs from the browser client, and why:
+
+- **Auth transport.** A browser gets an `HttpOnly` session cookie
+  automatically resent on every request. A native app has no cookie jar
+  shared with a browser, so `s.auth` (`server.go`) also accepts an
+  `Authorization: Bearer <jwt>` header — the same JWT, same 24h expiry, same
+  `verifyJWT` validation path, just carried differently. Login/register
+  responses now include `"token"` in the JSON body in addition to setting
+  the cookie, so the mobile client has something to store. The token is kept
+  in `flutter_secure_storage` (Keychain / EncryptedSharedPreferences)
+  instead of a cookie jar.
+- **WebSocket auth.** Browsers authenticate the `/ws` upgrade via the
+  automatically-sent cookie. The Bearer header works for native WebSocket
+  clients too (`bearerToken` in `server.go` checks the header first); a
+  `?token=` query-parameter fallback exists for upgrade paths where setting
+  a header proves unreliable. `bearerToken` only honors that query fallback
+  when the request itself carries `Upgrade: websocket`, so it can't be used
+  to bypass Bearer/cookie auth on ordinary REST calls.
+- **Google OAuth.** The browser flow is a full page redirect ending in a
+  `302` back to the frontend with the session cookie already set. The
+  mobile flow (`google_oauth.go`, `platform=mobile` query param) reuses the
+  identical PKCE/state exchange, then redirects to a `cutable://auth-callback`
+  custom URL scheme carrying the JWT, captured in-app via
+  `flutter_web_auth_2` (ASWebAuthenticationSession on iOS, Custom Tabs on
+  Android) instead of landing in a browser tab.
+- **BYOK credentials.** The web app keeps OpenRouter/E2B keys in
+  `sessionStorage` (tab-scoped). Mobile has no equivalent session boundary,
+  so it uses `flutter_secure_storage` with an explicit "forget keys" action
+  in the settings sheet — same rule (session-only, user-controlled, never
+  persisted server-side), different mechanism for the same effect.
+- **No in-app code editor.** The mobile Files tab is read-only (view
+  content, no Monaco-equivalent editing) — everything else in the AI
+  execution loop (03) is identical, since editing was always a client-side
+  affordance, not something the agent loop depends on.
+
 ## Data model
 
 ```text
@@ -142,6 +190,10 @@ is account-level, not project-level.
 | Attachments are size/type/content checked | [`validateAttachments`](../../apps/backend/internal/httpapi/server.go) |
 | Password and Google auth converge on one cookie | [`server.go`](../../apps/backend/internal/httpapi/server.go), [`google_oauth.go`](../../apps/backend/internal/httpapi/google_oauth.go) |
 | Backend is nonroot and multi-architecture | [`Dockerfile`](../../apps/backend/Dockerfile), [`publish-backend.yml`](../../.github/workflows/publish-backend.yml) |
+| Mobile Bearer/cookie auth share one verification path | [`verifyJWT`](../../apps/backend/internal/httpapi/server.go), used by both `s.auth` and the WebSocket upgrade |
+| WS `?token=` fallback only applies to upgrade requests | [`bearerToken`](../../apps/backend/internal/httpapi/server.go) |
+| Mobile OAuth reuses the same PKCE/state exchange as web | [`google_oauth.go`](../../apps/backend/internal/httpapi/google_oauth.go), `platform=mobile` branch in `googleCallback` |
+| Mobile secret storage uses the platform keychain, not plain prefs | [`secure_storage.dart`](../../apps/mobile/lib/data/secure_storage.dart) (`flutter_secure_storage`) |
 
 ## Known boundaries
 
