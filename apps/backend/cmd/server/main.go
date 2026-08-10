@@ -20,7 +20,7 @@ import (
 )
 
 func main() {
-	_ = godotenv.Load("/run/secrets/cutable.env", "../../.env", ".env")
+	loadEnvFiles("/run/secrets/cutable.env", "../../.env", ".env")
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	cfg, err := config.Load()
@@ -44,7 +44,7 @@ func main() {
 
 	openRouter := provider.NewOpenRouter(cfg.OpenRouterAPIKey, cfg.OpenRouterModel)
 	e2b := provider.NewE2B(cfg.E2BAPIKey, cfg.E2BTemplateAlias, cfg.SandboxTimeout)
-	runner := agent.NewRunner(database, openRouter, e2b, cfg.AgentMaxSteps)
+	runner := agent.NewRunner(database, openRouter, e2b, cfg.AgentMaxSteps, logger)
 	api := httpapi.New(cfg, database, runner, e2b, logger)
 
 	server := &http.Server{
@@ -68,5 +68,16 @@ func main() {
 	defer shutdownCancel()
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		logger.Error("server shutdown failed", "error", err)
+	}
+}
+
+// loadEnvFiles loads each candidate .env file independently. godotenv.Load
+// stops at the first file it can't open, so passing all candidates to a
+// single call silently skips every later path whenever an earlier one (e.g.
+// the production-only /run/secrets/cutable.env) doesn't exist — which meant
+// local development's repository-root .env was never actually loaded.
+func loadEnvFiles(paths ...string) {
+	for _, path := range paths {
+		_ = godotenv.Load(path)
 	}
 }

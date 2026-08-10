@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"path"
 	"regexp"
 	"strings"
@@ -19,11 +21,49 @@ const appRoot = "/home/user/react-app"
 
 type EventSender func(event map[string]any) error
 
+// Sandbox is the subset of *provider.E2B the agent loop needs to manage a
+// generated app's isolated filesystem and dev server. Extracted as an
+// interface (rather than depending on *provider.E2B directly) so the agent
+// loop's tool-execution logic can be unit tested against a fake sandbox
+// instead of a real E2B environment.
+type Sandbox interface {
+	Connect(ctx context.Context, sandboxID string) (provider.Sandbox, error)
+	Create(ctx context.Context, projectID string) (provider.Sandbox, error)
+	Kill(ctx context.Context, sandboxID string) error
+	PreviewURL(sandboxID string) string
+	WriteFile(ctx context.Context, sandboxID, accessToken, path string, content []byte) error
+	ReadFile(ctx context.Context, sandboxID, accessToken, path string) ([]byte, error)
+	RemoveFile(ctx context.Context, sandboxID, accessToken, path string) error
+	MoveFile(ctx context.Context, sandboxID, accessToken, oldPath, newPath string) error
+	ListDir(ctx context.Context, sandboxID, accessToken, path string, depth int) ([]provider.DirEntry, error)
+	Run(ctx context.Context, sandboxID, accessToken, command, cwd string) (provider.CommandResult, error)
+}
+
+// Store is the subset of *store.Store the agent loop needs to read project
+// state and persist generated files/conversation history. Extracted as an
+// interface for the same testability reason as Sandbox above.
+type Store interface {
+	Project(ctx context.Context, userID, projectID uuid.UUID) (store.Project, error)
+	AddConversation(ctx context.Context, projectID uuid.UUID, from, messageType, contents string, toolCall *string) (store.Conversation, error)
+	Files(ctx context.Context, projectID uuid.UUID) ([]store.ProjectFile, error)
+	SaveSandbox(ctx context.Context, projectID uuid.UUID, sandboxID, sandboxURL string) error
+	UpsertFile(ctx context.Context, projectID uuid.UUID, path, content string) error
+	DeleteFile(ctx context.Context, projectID uuid.UUID, path string) error
+	RenameFile(ctx context.Context, projectID uuid.UUID, oldPath, newPath string) error
+}
+
+// ChatModel is the subset of *provider.OpenRouter the agent loop needs to
+// plan and execute tool calls.
+type ChatModel interface {
+	Complete(ctx context.Context, messages []provider.Message, tools []provider.ToolDefinition) (provider.Message, error)
+}
+
 type Runner struct {
-	store    *store.Store
-	model    *provider.OpenRouter
-	sandbox  *provider.E2B
+	store    Store
+	model    ChatModel
+	sandbox  Sandbox
 	maxSteps int
+	logger   *slog.Logger
 }
 
 type session struct {
@@ -33,8 +73,24 @@ type session struct {
 	send        EventSender
 }
 
-func NewRunner(database *store.Store, model *provider.OpenRouter, sandbox *provider.E2B, maxSteps int) *Runner {
-	return &Runner{store: database, model: model, sandbox: sandbox, maxSteps: maxSteps}
+// NewRunner accepts the narrow Store/ChatModel/Sandbox interfaces above
+// rather than concrete provider types. *store.Store, *provider.OpenRouter,
+// and *provider.E2B all already satisfy them, so production call sites are
+// unaffected; tests can pass lightweight fakes instead.
+func NewRunner(database Store, model ChatModel, sandbox Sandbox, maxSteps int, logger *slog.Logger) *Runner {
+	if logger == nil {
+		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+	}
+	return &Runner{store: database, model: model, sandbox: sandbox, maxSteps: maxSteps, logger: logger}
+}
+
+// killAbandonedSandbox best-effort tears down a just-created sandbox after a
+// later setup step fails, logging (rather than silently discarding) any
+// cleanup failure so a leaked E2B sandbox is at least visible in logs.
+func (r *Runner) killAbandonedSandbox(ctx context.Context, sandboxID string, cause error) {
+	if err := r.sandbox.Kill(ctx, sandboxID); err != nil {
+		r.logger.Error("failed to clean up abandoned sandbox", "sandboxId", sandboxID, "cause", cause, "killError", err)
+	}
 }
 
 func (r *Runner) Run(ctx context.Context, userID, projectID uuid.UUID, prompt string, send EventSender) error {
@@ -165,12 +221,12 @@ func (r *Runner) ensureSandbox(ctx context.Context, s *session) error {
 	s.sandboxID = created.SandboxID
 	s.accessToken = *created.EnvdAccessToken
 	if err := r.restoreProjectFiles(ctx, s); err != nil {
-		_ = r.sandbox.Kill(context.Background(), created.SandboxID)
+		r.killAbandonedSandbox(context.Background(), created.SandboxID, err)
 		return fmt.Errorf("restore generated files: %w", err)
 	}
 	preview := r.sandbox.PreviewURL(created.SandboxID)
 	if err := r.store.SaveSandbox(ctx, s.project.ID, created.SandboxID, preview); err != nil {
-		_ = r.sandbox.Kill(context.Background(), created.SandboxID)
+		r.killAbandonedSandbox(context.Background(), created.SandboxID, err)
 		return err
 	}
 	return s.send(map[string]any{"e": "sandbox_created", "sandboxId": created.SandboxID, "previewUrl": preview})

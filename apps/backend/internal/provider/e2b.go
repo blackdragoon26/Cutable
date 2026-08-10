@@ -30,6 +30,25 @@ type E2B struct {
 	client   *http.Client
 }
 
+// StatusError wraps a non-2xx E2B API response so callers can branch on the
+// HTTP status (e.g. treat 404 as "already gone") instead of string-matching
+// the error message.
+type StatusError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *StatusError) Error() string {
+	return fmt.Sprintf("e2b status %d: %s", e.StatusCode, e.Body)
+}
+
+// IsNotFound reports whether err is an E2B StatusError for a 404 response,
+// e.g. killing a sandbox that E2B has already reaped.
+func IsNotFound(err error) bool {
+	var statusErr *StatusError
+	return errors.As(err, &statusErr) && statusErr.StatusCode == http.StatusNotFound
+}
+
 type Sandbox struct {
 	TemplateID         string  `json:"templateID"`
 	SandboxID          string  `json:"sandboxID"`
@@ -252,7 +271,7 @@ func (e *E2B) doOK(req *http.Request, output any) error {
 	defer res.Body.Close()
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
-		return fmt.Errorf("e2b status %d: %s", res.StatusCode, strings.TrimSpace(string(body)))
+		return &StatusError{StatusCode: res.StatusCode, Body: strings.TrimSpace(string(body))}
 	}
 	if output == nil {
 		_, _ = io.Copy(io.Discard, res.Body)

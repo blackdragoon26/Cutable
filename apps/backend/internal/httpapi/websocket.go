@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -19,8 +20,9 @@ import (
 )
 
 type socketWriter struct {
-	mu   sync.Mutex
-	conn *websocket.Conn
+	mu     sync.Mutex
+	conn   *websocket.Conn
+	logger *slog.Logger
 }
 
 type providerCredentials struct {
@@ -68,7 +70,16 @@ func (w *socketWriter) send(ctx context.Context, event map[string]any) error {
 	defer w.mu.Unlock()
 	writeCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	return wsjson.Write(writeCtx, w.conn, event)
+	err := wsjson.Write(writeCtx, w.conn, event)
+	// Most call sites intentionally ignore this error (a failed write just
+	// means the client won't see that one notification; the read loop will
+	// exit on its own once the connection is actually dead) but still log
+	// it here so a systemic write failure is visible in server logs instead
+	// of silently vanishing at every "_ = writer.send(...)" call site.
+	if err != nil && w.logger != nil {
+		w.logger.Warn("websocket send failed", "event", event["e"], "error", err)
+	}
+	return err
 }
 
 func (s *Server) websocket(w http.ResponseWriter, r *http.Request) {
@@ -90,7 +101,7 @@ func (s *Server) websocket(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close(websocket.StatusNormalClosure, "")
 	conn.SetReadLimit(1 << 20)
-	writer := &socketWriter{conn: conn}
+	writer := &socketWriter{conn: conn, logger: s.logger}
 	if err := writer.send(r.Context(), map[string]any{"e": "connected", "authenticated": true, "projectId": projectID}); err != nil {
 		return
 	}
@@ -131,6 +142,7 @@ func (s *Server) websocket(w http.ResponseWriter, r *http.Request) {
 					provider.NewOpenRouter(credentials.OpenRouterAPIKey, s.cfg.OpenRouterModel),
 					provider.NewE2B(credentials.E2BAPIKey, s.cfg.E2BTemplateAlias, s.cfg.SandboxTimeout),
 					s.cfg.AgentMaxSteps,
+					s.logger,
 				)
 			} else {
 				var claimed bool
