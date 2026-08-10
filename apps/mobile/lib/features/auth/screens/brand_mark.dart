@@ -11,7 +11,7 @@ class BrandMark extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Image.asset('assets/brand/cutable-v3-transparent.png', height: size),
+        Image.asset('assets/brand/cutable-mark.png', height: size),
         const SizedBox(width: 10),
         Text(
           'Cutable',

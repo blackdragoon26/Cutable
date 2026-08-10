@@ -27,8 +27,22 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.3
 
 flutter:
   uses-material-design: true
   assets:
     - assets/brand/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/brand/cutable-mark.png"
+  # iOS App Store icons must be fully opaque; flatten the mark's
+  # transparency onto the web app's light "paper" background
+  # (apps/frontend/app/globals.css --background) rather than shipping an
+  # icon with alpha, which Xcode/App Store Connect reject.
+  background_color: "#F6F6F3"
+  remove_alpha_ios: true
+  adaptive_icon_background: "#F6F6F3"
+  adaptive_icon_foreground: "assets/brand/cutable-mark.png"
