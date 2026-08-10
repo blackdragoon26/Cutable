@@ -9,10 +9,10 @@ class FileNode {
 
   final String name;
   final String path;
-  final String type; // "file" | "directory"
+  final String type; // "file" | "folder"
   final List<FileNode> children;
 
-  bool get isDirectory => type == 'directory';
+  bool get isDirectory => type == 'folder';
 
   factory FileNode.fromJson(Map<String, dynamic> json) => FileNode(
         name: json['name'] as String,

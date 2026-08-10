@@ -17,15 +17,29 @@ const _maxReconnectAttempts = 5;
 /// apps/frontend/app/hooks/useWebSocket.ts:170-181.
 const _noReconnectCloseCodes = {4000, 4001, 4003};
 
+/// Creates the [WebSocketChannel] used for a single connection attempt.
+/// Defaults to a real `IOWebSocketChannel.connect`; tests inject a fake so
+/// [WsClient]'s reconnect/parsing logic can be exercised without a socket.
+typedef WebSocketChannelFactory = WebSocketChannel Function(Uri uri, {Map<String, String>? headers});
+
+WebSocketChannel _defaultChannelFactory(Uri uri, {Map<String, String>? headers}) {
+  // IOWebSocketChannel lets us set headers on the upgrade request on
+  // iOS/Android; the ?token= query param in [WsClient._open] is kept as a
+  // fallback in case header injection proves unreliable on a given platform.
+  return IOWebSocketChannel.connect(uri, headers: headers, pingInterval: null);
+}
+
 /// Mirrors apps/frontend/app/hooks/useWebSocket.ts. Connects to
 /// GET `/ws?projectId=<id>` (apps/backend/internal/httpapi/websocket.go),
 /// authenticating via a Bearer header at connect time with a ?token= query
 /// fallback (apps/backend/internal/httpapi/server.go bearerToken()).
 class WsClient {
-  WsClient(this._secureStorage, {required this.projectId});
+  WsClient(this._secureStorage, {required this.projectId, WebSocketChannelFactory? channelFactory})
+      : _channelFactory = channelFactory ?? _defaultChannelFactory;
 
   final SecureStorage _secureStorage;
   final String projectId;
+  final WebSocketChannelFactory _channelFactory;
 
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _subscription;
@@ -52,13 +66,9 @@ class WsClient {
       'token': ?token,
     });
     try {
-      // IOWebSocketChannel lets us set headers on the upgrade request on
-      // iOS/Android; the ?token= query param above is kept as a fallback in
-      // case header injection proves unreliable on a given platform.
-      _channel = IOWebSocketChannel.connect(
+      _channel = _channelFactory(
         uri,
         headers: token != null ? {'Authorization': 'Bearer $token'} : null,
-        pingInterval: null,
       );
       _subscription = _channel!.stream.listen(
         _handleRaw,
@@ -100,10 +110,18 @@ class WsClient {
     _scheduleReconnect();
   }
 
+  /// Exponential backoff: 1s, 2s, 4s, 8s, 16s, capped at 30s. `attempt` is
+  /// 1-indexed (the delay before the first reconnect attempt).
+  static int reconnectDelayMs(int attempt) {
+    return min(1000 * pow(2, attempt - 1).toInt(), 30000);
+  }
+
+  int get reconnectAttempts => _reconnectAttempts;
+
   void _scheduleReconnect() {
     if (_reconnectAttempts >= _maxReconnectAttempts) return;
     _reconnectAttempts += 1;
-    final delayMs = min(1000 * pow(2, _reconnectAttempts - 1).toInt(), 30000);
+    final delayMs = reconnectDelayMs(_reconnectAttempts);
     Timer(Duration(milliseconds: delayMs), () {
       if (!_manuallyClosed) _open();
     });

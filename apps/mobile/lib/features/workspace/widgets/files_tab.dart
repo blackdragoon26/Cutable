@@ -23,15 +23,15 @@ class FilesTab extends ConsumerWidget {
 
     final treeAsync = ref.watch(fileTreeProvider(projectId));
     return treeAsync.when(
-      data: (root) {
-        if (root.children.isEmpty) {
+      data: (topLevelNodes) {
+        if (topLevelNodes.isEmpty) {
           return const Center(child: Text('No files yet — files appear here as the agent builds.'));
         }
         return RefreshIndicator(
           onRefresh: () => ref.refresh(fileTreeProvider(projectId).future),
           child: ListView(
             padding: const EdgeInsets.all(8),
-            children: root.children.map((node) => _FileTreeNode(projectId: projectId, node: node, depth: 0)).toList(),
+            children: topLevelNodes.map((node) => _FileTreeNode(projectId: projectId, node: node, depth: 0)).toList(),
           ),
         );
       },

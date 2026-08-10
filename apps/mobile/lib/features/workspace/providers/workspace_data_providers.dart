@@ -10,7 +10,7 @@ final projectDetailProvider =
 });
 
 final fileTreeProvider =
-    FutureProvider.autoDispose.family<FileNode, String>((ref, projectId) {
+    FutureProvider.autoDispose.family<List<FileNode>, String>((ref, projectId) {
   return ref.watch(projectRepositoryProvider).listFiles(projectId);
 });
 

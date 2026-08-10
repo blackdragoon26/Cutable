@@ -34,9 +34,15 @@ class ProjectRepository {
     return Project.fromJson(response.data['project'] as Map<String, dynamic>);
   }
 
-  Future<FileNode> listFiles(String projectId) async {
+  /// Returns the top-level file tree entries. The backend's
+  /// store.BuildFileTree (apps/backend/internal/store/store.go:447) returns
+  /// a JSON array of sibling FileNodes at the project root, not a single
+  /// wrapper node with a "children" field.
+  Future<List<FileNode>> listFiles(String projectId) async {
     final response = await _api.dio.get('/api/projects/$projectId/files');
-    return FileNode.fromJson(response.data['files'] as Map<String, dynamic>);
+    return (response.data['files'] as List<dynamic>)
+        .map((item) => FileNode.fromJson(item as Map<String, dynamic>))
+        .toList();
   }
 
   Future<String> getFileContent(String projectId, String path) async {
