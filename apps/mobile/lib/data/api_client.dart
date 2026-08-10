@@ -41,7 +41,16 @@ class ApiClient {
       if (data is Map && data['error'] is String) {
         return data['error'] as String;
       }
-      return error.message ?? 'Network request failed';
+      switch (error.type) {
+        case DioExceptionType.connectionError:
+        case DioExceptionType.connectionTimeout:
+          return "Couldn't reach the server. Check your connection and try again.";
+        case DioExceptionType.receiveTimeout:
+        case DioExceptionType.sendTimeout:
+          return 'The server took too long to respond. Please try again.';
+        default:
+          return error.message ?? 'Network request failed';
+      }
     }
     return error.toString();
   }
