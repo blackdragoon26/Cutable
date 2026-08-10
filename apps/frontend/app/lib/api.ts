@@ -47,6 +47,13 @@ export interface CurrentUser {
   email: string;
 }
 
+export interface FileNode {
+  name: string;
+  type: "file" | "folder";
+  children?: FileNode[];
+  path?: string;
+}
+
 export class ApiError extends Error {
   status: number;
 
@@ -144,7 +151,7 @@ export async function getProject(projectId: string) {
 }
 
 export async function getProjectFiles(projectId: string) {
-  return apiRequest<ApiResponse<{ files: any[] }>>(
+  return apiRequest<ApiResponse<{ files: FileNode[] }>>(
     `/api/projects/${projectId}/files`
   );
 }

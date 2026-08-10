@@ -2,15 +2,11 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import type { WebSocketEvent } from "@/app/lib/ws-events";
 
 const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3010";
 const MAX_RECONNECT_ATTEMPTS = 5;
 const PING_INTERVAL_MS = 30000; // 30 seconds
-
-interface WebSocketEvent {
-  e: string;
-  [key: string]: any;
-}
 
 interface UseWebSocketOptions {
   projectId: string;
@@ -279,6 +275,15 @@ export function useWebSocket({
     return () => {
       mounted = false;
       clearTimeout(connectTimeout);
+
+      // Always cancel any pending reconnect attempt on unmount — otherwise
+      // a reconnect scheduled after an abnormal close can still fire (and
+      // open a new socket / update state) after the component is gone.
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+
       // Only disconnect if we're actually connected
       // This prevents React Strict Mode from closing connections prematurely
       if (wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) {

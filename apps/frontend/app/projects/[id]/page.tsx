@@ -13,7 +13,7 @@ import ThemeToggle from "@/app/components/ThemeToggle";
 import { useCreateSandbox, useProject, useProjectFiles, useSandboxInfo } from "@/app/hooks/useProjectQueries";
 import { useWebSocket } from "@/app/hooks/useWebSocket";
 import { useAgentSession } from "@/app/hooks/useAgentSession";
-import { getAccountUsage, type DemoUsage } from "@/app/lib/api";
+import { getAccountUsage, type DemoUsage, type FileNode } from "@/app/lib/api";
 import {
   loadProviderCredentials,
   type ProviderCredentials,
@@ -21,12 +21,6 @@ import {
 
 interface ProjectPageProps {
   params: Promise<{ id: string }>;
-}
-
-interface FileTreeNode {
-  type: "file" | "folder";
-  path: string;
-  children?: FileTreeNode[];
 }
 
 export default function ProjectPage({ params }: ProjectPageProps) {
@@ -188,9 +182,9 @@ export default function ProjectPage({ params }: ProjectPageProps) {
     setActiveFile(filePath);
   };
 
-  function findFirstFile(nodes: FileTreeNode[]): { path: string } | null {
+  function findFirstFile(nodes: FileNode[]): { path: string } | null {
     for (const node of nodes) {
-      if (node.type === "file") {
+      if (node.type === "file" && node.path) {
         return { path: node.path };
       }
       if (node.children && node.children.length > 0) {
@@ -203,9 +197,9 @@ export default function ProjectPage({ params }: ProjectPageProps) {
 
   const fileContents: Record<string, string> = {};
   if (files.length > 0) {
-    function extractFiles(nodes: FileTreeNode[]) {
+    function extractFiles(nodes: FileNode[]) {
       for (const node of nodes) {
-        if (node.type === "file") {
+        if (node.type === "file" && node.path) {
           fileContents[node.path] = "";
         }
         if (node.children) {

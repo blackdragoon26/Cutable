@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   clearProviderCredentials,
   loadProviderCredentials,
@@ -15,6 +15,9 @@ interface ProviderKeyDialogProps {
   onSaved: (credentials: ProviderCredentials) => void;
 }
 
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 export default function ProviderKeyDialog({
   open,
   message,
@@ -23,6 +26,8 @@ export default function ProviderKeyDialog({
 }: ProviderKeyDialogProps) {
   const [openRouterApiKey, setOpenRouterApiKey] = useState("");
   const [e2bApiKey, setE2bApiKey] = useState("");
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -30,6 +35,66 @@ export default function ProviderKeyDialog({
     setOpenRouterApiKey(saved?.openRouterApiKey ?? "");
     setE2bApiKey(saved?.e2bApiKey ?? "");
   }, [open]);
+
+  // Escape-to-close, focus trap, and focus restoration on close.
+  useEffect(() => {
+    if (!open) return;
+
+    previouslyFocusedRef.current =
+      (document.activeElement as HTMLElement | null) ?? null;
+
+    const dialogNode = dialogRef.current;
+    const getFocusable = () =>
+      dialogNode
+        ? Array.from(
+            dialogNode.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+          ).filter((el) => el.offsetParent !== null || el === document.activeElement)
+        : [];
+
+    // Move initial focus into the dialog.
+    const focusable = getFocusable();
+    (focusable[0] ?? dialogNode)?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const elements = getFocusable();
+      if (elements.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const first = elements[0];
+      const last = elements[elements.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (event.shiftKey) {
+        if (active === first || !dialogNode?.contains(active)) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (active === last || !dialogNode?.contains(active)) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown, true);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown, true);
+      // Restore focus to whatever triggered the dialog.
+      previouslyFocusedRef.current?.focus();
+    };
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -55,10 +120,12 @@ export default function ProviderKeyDialog({
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-950/35 px-4 backdrop-blur-sm">
       <section
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="provider-key-title"
-        className="w-full max-w-lg rounded-2xl border border-stone-200 bg-[#fafaf8] p-6 shadow-2xl sm:p-7"
+        tabIndex={-1}
+        className="w-full max-w-lg rounded-2xl border border-stone-200 bg-[#fafaf8] p-6 shadow-2xl outline-none sm:p-7"
       >
         <div className="flex items-start justify-between gap-6">
           <div>

@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { createConversationMessage } from "@/app/lib/api";
+import type { WebSocketEvent } from "@/app/lib/ws-events";
 
 export type ConversationMessageType = "TEXT_MESSAGE" | "TOOL_CALL" | "ERROR_MESSAGE";
 
@@ -22,11 +23,6 @@ export interface StageInfo {
   progress: number;
   currentStep?: number;
   totalSteps?: number;
-}
-
-interface WebSocketEvent {
-  e: string;
-  [key: string]: any;
 }
 
 type ToolCall =
@@ -167,7 +163,7 @@ const formatAgentEvent = (event: WebSocketEvent): FormattedAgentEvent | null => 
     case "step_completed": {
       return {
         type: "TEXT_MESSAGE",
-        contents: `✓ ${event.step}${event.remainingSteps > 0 ? ` (${event.remainingSteps} steps remaining)` : ""}`,
+        contents: `✓ ${event.step}${(event.remainingSteps ?? 0) > 0 ? ` (${event.remainingSteps} steps remaining)` : ""}`,
       };
     }
 
@@ -403,8 +399,8 @@ export function useAgentSession(projectId: string) {
       // Handle stage updates
       if (event.e === "stage_update") {
         setStageInfo({
-          stage: event.stage,
-          message: event.message,
+          stage: event.stage || "unknown",
+          message: event.message || "",
           progress: event.progress || 0,
           currentStep: event.currentStep,
           totalSteps: event.totalSteps,
@@ -421,7 +417,7 @@ export function useAgentSession(projectId: string) {
       if (event.e === "stage_error") {
         setStageInfo({
           stage: "error",
-          message: event.message,
+          message: event.message || "",
           progress: 0,
         });
         setIsProcessing(false);

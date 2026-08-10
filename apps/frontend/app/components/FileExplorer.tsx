@@ -1,13 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-
-interface FileNode {
-  name: string;
-  type: "file" | "folder";
-  children?: FileNode[];
-  path?: string;
-}
+import type { FileNode } from "@/app/lib/api";
 
 interface FileExplorerProps {
   files?: FileNode[];
