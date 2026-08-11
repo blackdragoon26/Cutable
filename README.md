@@ -1,9 +1,10 @@
 # Cutable
 
-Cutable is an AI web-app builder. A Next.js workspace lets users describe an
+Cutable is an AI web-app builder. A Next.js workspace — or the Flutter mobile
+app in [apps/mobile](apps/mobile/README.md) — lets users describe an
 application, while a Go API plans and executes the work with OpenRouter inside
 isolated E2B sandboxes. Generated files are indexed in PostgreSQL and streamed
-to the browser over WebSockets.
+to the client over WebSockets.
 
 This repository is a Go backend migration and Cutable rebrand of the original
 Likeable project. The UI was retained and modernized; the former
@@ -45,6 +46,8 @@ https://github.com/user-attachments/assets/a04fd8e5-7485-4f8b-a201-b0bbcb705eaa
 - Docker with Compose
 - An OpenRouter API key with available credits
 - An E2B API key with available credits
+- Flutter (stable channel), Xcode, and/or Android Studio — only if you're
+  working on [apps/mobile](apps/mobile/README.md)
 
 ## Local setup
 
@@ -116,6 +119,34 @@ npm --prefix apps/backend run build-template-dev
 Template builds and live sandboxes consume E2B credits. Agent runs consume the
 OpenRouter credits associated with the configured model.
 
+## Mobile app
+
+`apps/mobile` is a Flutter client (iOS + Android) for the same Go API — same
+auth, project list/create, and live-streamed AI build workflow, in a tabbed
+Chat/Files/Preview workspace. It's a separate client, not a separate
+backend: any project created on the web is immediately visible and buildable
+from the app, and vice versa.
+
+```sh
+cd apps/mobile
+flutter pub get
+flutter run -d <device-id> \
+  --dart-define=API_BASE_URL=http://localhost:3010 \
+  --dart-define=WS_BASE_URL=ws://localhost:3010
+```
+
+See [apps/mobile/README.md](apps/mobile/README.md) for Android-emulator
+networking (`10.0.2.2`), the Google sign-in custom-URL-scheme setup, and how
+to regenerate the app icon. The [architecture handbook](docs/architecture/README.md#05--mobile-client)
+covers how mobile auth (Bearer tokens, secure on-device storage) differs
+from the browser's cookie-based session.
+
+Distribution: Android builds a release APK on every push to `main`
+touching `apps/mobile/**` ([.github/workflows/mobile.yml](.github/workflows/mobile.yml)),
+published to a [GitHub Release](https://github.com/blackdragoon26/Cutable/releases/tag/mobile-latest)
+the landing page links to directly. iOS is Simulator-verified and
+TestFlight-ready pending an Apple Developer submission.
+
 ## Verification
 
 ```sh
@@ -124,6 +155,8 @@ npm run lint
 npm run build
 npm audit --prefix apps/frontend
 npm audit --prefix apps/backend
+
+cd apps/mobile && flutter analyze && flutter test
 ```
 
 The E2B live integration test is opt-in. Supply an existing running sandbox ID;
