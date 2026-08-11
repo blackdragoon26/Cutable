@@ -74,6 +74,33 @@ class ProjectRepository {
     );
   }
 
+  /// Reconnects the project's E2B sandbox if it's still alive, or recreates
+  /// it and replays the persisted files otherwise (mirrors the web app's
+  /// "Restart preview" — apps/backend/internal/httpapi/sandbox.go
+  /// createSandbox already handles both cases server-side; the mobile app
+  /// just never called it, so a preview whose sandbox had expired stayed
+  /// dead forever instead of coming back).
+  Future<({String? sandboxId, String? previewUrl})> restartSandbox(
+    String projectId, {
+    String? e2bApiKey,
+  }) async {
+    // Only the E2B key matters here — restarting a sandbox never calls the
+    // AI model — but the backend accepts the same {credentials} shape used
+    // for a full build, so an OpenRouter key is simply omitted.
+    final response = await _api.dio.post(
+      '/api/projects/$projectId/sandbox',
+      data: e2bApiKey != null
+          ? {
+              'credentials': {'e2bApiKey': e2bApiKey},
+            }
+          : null,
+    );
+    return (
+      sandboxId: response.data['sandboxId'] as String?,
+      previewUrl: response.data['previewUrl'] as String?,
+    );
+  }
+
   Future<Map<String, dynamic>> accountUsage() async {
     final response = await _api.dio.get('/api/account/usage');
     return response.data['demo'] as Map<String, dynamic>;
