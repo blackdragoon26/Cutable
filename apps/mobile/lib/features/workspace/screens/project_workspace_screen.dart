@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../data/models/ws_event.dart';
 import '../../auth/providers/auth_providers.dart';
@@ -57,6 +58,16 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
       length: 3,
       child: Scaffold(
         appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back to dashboard',
+            // New Project navigates here with context.go (replacing history,
+            // since the prompt screen shouldn't stay in the back stack once
+            // building starts), so there's often nothing to pop — fall back
+            // to explicitly going home rather than leaving the user stuck
+            // with no way back.
+            onPressed: () => context.canPop() ? context.pop() : context.go('/dashboard'),
+          ),
           title: Text(projectAsync.valueOrNull?.title ?? 'Project'),
           bottom: const TabBar(tabs: [
             Tab(icon: Icon(Icons.chat_bubble_outline), text: 'Chat'),
