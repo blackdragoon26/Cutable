@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/file_node.dart';
@@ -100,7 +101,25 @@ class _FileViewerScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final contentAsync = ref.watch(fileContentProvider((projectId: projectId, path: path)));
     return Scaffold(
-      appBar: AppBar(title: Text(path.split('/').last)),
+      appBar: AppBar(
+        title: Text(path.split('/').last),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.copy_outlined),
+            tooltip: 'Copy file contents',
+            onPressed: contentAsync.valueOrNull == null
+                ? null
+                : () async {
+                    await Clipboard.setData(ClipboardData(text: contentAsync.requireValue));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Copied to clipboard')),
+                      );
+                    }
+                  },
+          ),
+        ],
+      ),
       body: contentAsync.when(
         data: (content) => SingleChildScrollView(
           padding: const EdgeInsets.all(16),

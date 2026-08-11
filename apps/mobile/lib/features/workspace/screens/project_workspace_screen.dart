@@ -32,6 +32,16 @@ class _ProjectWorkspaceScreenState extends ConsumerState<ProjectWorkspaceScreen>
     final projectAsync = ref.watch(projectDetailProvider(widget.projectId));
     final session = ref.watch(agentSessionProvider(widget.projectId));
 
+    // Reopening an already-built project has no live WS events to show, so
+    // seed the chat pane from persisted history instead of leaving it
+    // empty forever (seedHistory no-ops once live messages exist).
+    ref.listen(conversationHistoryProvider(widget.projectId), (previous, next) {
+      final history = next.valueOrNull;
+      if (history != null) {
+        ref.read(agentSessionProvider(widget.projectId).notifier).seedHistory(history);
+      }
+    });
+
     // Auto-start the agent with the project's initial prompt once the
     // socket is connected and the project has no build output yet.
     if (!_bootstrapped &&

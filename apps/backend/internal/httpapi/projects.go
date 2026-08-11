@@ -72,6 +72,22 @@ func (s *Server) getProject(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"message": "Project fetched successfully", "project": project})
 }
 
+func (s *Server) listConversations(w http.ResponseWriter, r *http.Request) {
+	project, ok := s.ownedProject(w, r)
+	if !ok {
+		return
+	}
+	conversations, err := s.store.Conversations(r.Context(), project.ID)
+	if err != nil {
+		s.internalError(w, r, err)
+		return
+	}
+	if conversations == nil {
+		conversations = []store.Conversation{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"message": "Conversations fetched successfully", "conversations": conversations})
+}
+
 func (s *Server) createConversation(w http.ResponseWriter, r *http.Request) {
 	project, ok := s.ownedProject(w, r)
 	if !ok {

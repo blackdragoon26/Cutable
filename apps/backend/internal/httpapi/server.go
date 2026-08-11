@@ -58,6 +58,7 @@ func (s *Server) routes() {
 	s.mux.Handle("GET /api/projects", s.auth(http.HandlerFunc(s.listProjects)))
 	s.mux.Handle("POST /api/projects", s.auth(http.HandlerFunc(s.createProject)))
 	s.mux.Handle("GET /api/projects/{id}", s.auth(http.HandlerFunc(s.getProject)))
+	s.mux.Handle("GET /api/projects/{id}/conversations", s.auth(http.HandlerFunc(s.listConversations)))
 	s.mux.Handle("POST /api/projects/{id}/conversations", s.auth(http.HandlerFunc(s.createConversation)))
 	s.mux.Handle("GET /api/projects/{id}/files", s.auth(http.HandlerFunc(s.listFiles)))
 	s.mux.Handle("GET /api/projects/{id}/files/{path...}", s.auth(http.HandlerFunc(s.getFile)))

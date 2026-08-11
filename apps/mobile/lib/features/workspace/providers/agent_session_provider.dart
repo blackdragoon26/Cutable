@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../data/models/conversation.dart';
 import '../../../data/models/ws_event.dart';
 import '../../../data/ws_client.dart';
 import '../../auth/providers/auth_providers.dart';
@@ -84,6 +85,29 @@ class AgentSessionController extends StateNotifier<AgentSessionState> {
   final WsClient _client;
   late final StreamSubscription<WsConnectionState> _stateSub;
   late final StreamSubscription<WsEvent> _eventSub;
+
+  /// Populates the chat pane from persisted history (GET
+  /// /api/projects/{id}/conversations) when reopening a project that was
+  /// already built — otherwise the pane stays empty forever, since the
+  /// agent only re-runs for brand-new projects with no generated files.
+  /// A no-op if live messages have already started arriving over the
+  /// socket, so this can't clobber an in-progress run.
+  void seedHistory(List<Conversation> history) {
+    if (state.messages.isNotEmpty || history.isEmpty) return;
+    state = state.copyWith(
+      messages: history
+          .map((c) => ChatMessage(
+                type: switch (c.type) {
+                  'TOOL_CALL' => ChatMessageType.tool,
+                  'ERROR_MESSAGE' => ChatMessageType.error,
+                  _ => ChatMessageType.text,
+                },
+                contents: c.contents,
+                createdAt: c.createdAt,
+              ))
+          .toList(),
+    );
+  }
 
   void sendPrompt(String prompt, {String? openRouterApiKey, String? e2bApiKey}) {
     _appendMessage(ChatMessageType.text, prompt);

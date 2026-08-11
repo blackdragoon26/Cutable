@@ -389,6 +389,32 @@ func (s *Store) AddConversation(ctx context.Context, projectID uuid.UUID, from, 
 	return c, err
 }
 
+// Conversations returns a project's persisted chat history in the order it
+// happened, so a client reopening an already-built project can show past
+// messages instead of an empty chat pane.
+func (s *Store) Conversations(ctx context.Context, projectID uuid.UUID) ([]Conversation, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT id,project_id,sender,message_type,contents,tool_call,created_at,updated_at
+		FROM conversations
+		WHERE project_id=$1
+		ORDER BY created_at ASC`,
+		projectID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var conversations []Conversation
+	for rows.Next() {
+		var c Conversation
+		if err := rows.Scan(&c.ID, &c.ProjectID, &c.From, &c.Type, &c.Contents, &c.ToolCall, &c.CreatedAt, &c.UpdatedAt); err != nil {
+			return nil, err
+		}
+		conversations = append(conversations, c)
+	}
+	return conversations, rows.Err()
+}
+
 func (s *Store) UpsertFile(ctx context.Context, projectID uuid.UUID, path, content string) error {
 	_, err := s.pool.Exec(ctx, `
 		INSERT INTO project_files (id,project_id,path,content)

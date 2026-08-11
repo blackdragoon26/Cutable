@@ -1,4 +1,5 @@
 import 'api_client.dart';
+import 'models/conversation.dart';
 import 'models/file_node.dart';
 import 'models/project.dart';
 
@@ -42,6 +43,16 @@ class ProjectRepository {
     final response = await _api.dio.get('/api/projects/$projectId/files');
     return (response.data['files'] as List<dynamic>)
         .map((item) => FileNode.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Past chat history for a project (GET /api/projects/{id}/conversations)
+  /// so reopening an already-built project shows what happened instead of
+  /// an empty chat pane — the agent only re-runs for brand-new projects.
+  Future<List<Conversation>> getConversations(String projectId) async {
+    final response = await _api.dio.get('/api/projects/$projectId/conversations');
+    return (response.data['conversations'] as List<dynamic>)
+        .map((item) => Conversation.fromJson(item as Map<String, dynamic>))
         .toList();
   }
 

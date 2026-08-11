@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../data/models/conversation.dart';
 import '../../../data/models/file_node.dart';
 import '../../../data/models/project.dart';
 import '../../auth/providers/auth_providers.dart';
@@ -7,6 +8,11 @@ import '../../auth/providers/auth_providers.dart';
 final projectDetailProvider =
     FutureProvider.autoDispose.family<Project, String>((ref, projectId) {
   return ref.watch(projectRepositoryProvider).getProject(projectId);
+});
+
+final conversationHistoryProvider =
+    FutureProvider.autoDispose.family<List<Conversation>, String>((ref, projectId) {
+  return ref.watch(projectRepositoryProvider).getConversations(projectId);
 });
 
 final fileTreeProvider =
